@@ -1,0 +1,19 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Flight search session history
+    match /search_sessions/{sessionId} {
+      allow read, write: if true;
+    }
+
+    // Flight bookings
+    match /bookings/{bookingId} {
+      allow read, write: if true;
+    }
+
+    // Default catch-all
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

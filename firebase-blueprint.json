@@ -1,0 +1,50 @@
+{
+  "entities": {
+    "SearchSession": {
+      "title": "SearchSession",
+      "description": "Historical flight searches and aggregated query sessions",
+      "type": "object",
+      "properties": {
+        "origin": { "type": "string", "description": "Origin IATA code" },
+        "destination": { "type": "string", "description": "Destination IATA code" },
+        "departureDate": { "type": "string", "description": "Departure date (YYYY-MM-DD)" },
+        "cabin": { "type": "string", "description": "Cabin class" },
+        "providers": { "type": "array", "description": "List of queried providers" },
+        "offersCount": { "type": "number", "description": "Total scraped offers count" },
+        "groupedFlightsCount": { "type": "number", "description": "Unique deduplicated flights count" },
+        "createdAt": { "type": "string", "description": "Creation timestamp in ISO format" }
+      },
+      "required": ["origin", "destination", "departureDate", "createdAt"]
+    },
+    "BookingRecord": {
+      "title": "BookingRecord",
+      "description": "Selected flight bookings and provider reservations",
+      "type": "object",
+      "properties": {
+        "flightId": { "type": "string", "description": "Canonical 16-character flight hash" },
+        "groupingKey": { "type": "string", "description": "Unified canonical grouping key" },
+        "flightNumber": { "type": "string", "description": "Flight number" },
+        "airlineName": { "type": "string", "description": "Airline name" },
+        "origin": { "type": "string", "description": "Origin code" },
+        "destination": { "type": "string", "description": "Destination code" },
+        "departureAt": { "type": "string", "description": "Departure datetime ISO" },
+        "provider": { "type": "string", "description": "Selected provider (alibaba, flytoday, safarmarket)" },
+        "totalPrice": { "type": "number", "description": "Total price in IRR" },
+        "status": { "type": "string", "description": "Reservation status (pending, confirmed)" },
+        "passengerName": { "type": "string", "description": "Passenger contact name" },
+        "createdAt": { "type": "string", "description": "Creation timestamp" }
+      },
+      "required": ["flightId", "provider", "totalPrice", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/search_sessions/{sessionId}": {
+      "schema": "SearchSession",
+      "description": "Collection of executed flight searches"
+    },
+    "/bookings/{bookingId}": {
+      "schema": "BookingRecord",
+      "description": "Collection of user-selected flight bookings"
+    }
+  }
+}
