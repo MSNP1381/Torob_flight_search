@@ -1,11 +1,22 @@
-<div align="center">
+# BuyO Backend (Architecture v2 Scaffold)
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+Initial backend scaffold generated from `docs/ARCHITECTURE_NEW_v2.md`.
 
-  <h1>Built with AI Studio</h2>
+## Run
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+```bash
+uv run uvicorn src.main:app --reload
+```
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+## Environment
 
-</div>
+Copy `.env.example` to `.env` and adjust values.
+
+## Local Bootstrap
+
+See `docs/LOCAL_ENV_BOOTSTRAP.md` for the full day-one setup flow:
+
+1. `uv sync --extra dev`
+2. `uv run python scripts/db_bootstrap.py`
+3. `uv run python scripts/db_seed_reference_data.py`
+4. `uv run python scripts/quality_gate.py`
