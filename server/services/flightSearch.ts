@@ -38,6 +38,11 @@ export interface GroupedFlightCard {
   duration: string;
   durationMinutes: number;
   stops: number;
+  stopInfo?: string;
+  transitCity?: string;
+  transitCities?: string[];
+  transitInfo?: string;
+  layoverDuration?: string;
   cabin: string;
   isDomestic: boolean;
   providers: ProviderOffer[];
@@ -59,6 +64,7 @@ export interface SearchSession {
   providersRequested: CrawlerProviderName[];
   groupedCards: GroupedFlightCard[];
   rawOffersCount: number;
+  routeNotice?: string;
   createdAt: number;
 }
 
@@ -123,7 +129,7 @@ export function sortFlightCards(
   return list;
 }
 
-// Distance calculation between 2 coordinates (Haversine)
+// Distance calculation between 2 coordinates (Haversine in km)
 function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371; // km
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -138,7 +144,7 @@ function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): 
   return Math.round(R * c);
 }
 
-// Simple seeded pseudo-random number generator for reproducible flight schedules per route+date
+// Seeded PRNG for reproducible flight schedules per route+date
 function createPrng(seedStr: string) {
   let hash = 0;
   for (let i = 0; i < seedStr.length; i++) {
@@ -168,15 +174,119 @@ const IRAN_DOMESTIC_AIRLINES = [
   { name: 'Meraj Airlines', nameFa: 'هواپیمایی معراج', code: 'MRJ', iata: 'JI' },
 ];
 
-// International Airlines
-const INTERNATIONAL_AIRLINES = [
+// Direct Regional International Airlines (Middle East / Turkey / Gulf / Caucasus)
+const REGIONAL_INTERNATIONAL_AIRLINES = [
   { name: 'Turkish Airlines', nameFa: 'ترکیش ایرلاینز', code: 'THY', iata: 'TK' },
-  { name: 'Emirates', nameFa: 'هواپیمایی امارات', code: 'UAE', iata: 'EK' },
   { name: 'Pegasus Airlines', nameFa: 'پگاسوس ایرلاینز', code: 'PGT', iata: 'PC' },
-  { name: 'Qatar Airways', nameFa: 'قطر ایرویز', code: 'QTR', iata: 'QR' },
+  { name: 'Emirates', nameFa: 'هواپیمایی امارات', code: 'UAE', iata: 'EK' },
   { name: 'FlyDubai', nameFa: 'فلای دبی', code: 'FDB', iata: 'FZ' },
+  { name: 'Qatar Airways', nameFa: 'قطر ایرویز', code: 'QTR', iata: 'QR' },
   { name: 'Mahan Air', nameFa: 'هواپیمایی ماهان', code: 'IRM', iata: 'W5' },
   { name: 'Iran Air', nameFa: 'ایران ایر', code: 'IRA', iata: 'IR' },
+  { name: 'Qeshm Air', nameFa: 'هواپیمایی قشم', code: 'QSM', iata: 'QB' },
+];
+
+// Realistic Connecting Hub Routes for North America (Tehran -> Toronto/Canada/USA)
+interface LongHaulConnectingCarrier {
+  airline: { name: string; nameFa: string; code: string; iata: string };
+  transitHub: string;
+  transitHubIata: string;
+  transitHubNameFa: string;
+  flightPrefix1: string;
+  flightPrefix2: string;
+  avgLeg1Hours: number;
+  avgLeg2Hours: number;
+  layoverMinHours: number;
+  layoverMaxHours: number;
+  baggagePolicy: string;
+  baseFareRial: number; // Base fare in IRR for North America
+}
+
+const NORTH_AMERICA_CONNECTING_CARRIERS: LongHaulConnectingCarrier[] = [
+  {
+    airline: { name: 'Turkish Airlines', nameFa: 'ترکیش ایرلاینز', code: 'THY', iata: 'TK' },
+    transitHub: 'Istanbul Airport',
+    transitHubIata: 'IST',
+    transitHubNameFa: 'استانبول (IST)',
+    flightPrefix1: 'TK-871',
+    flightPrefix2: 'TK-17',
+    avgLeg1Hours: 3.5,
+    avgLeg2Hours: 10.75,
+    layoverMinHours: 2.25,
+    layoverMaxHours: 4.5,
+    baggagePolicy: '۲ بسته ۲۳ کیلوگرم (46KG)',
+    baseFareRial: 520_000_000, // ~52M Tomans
+  },
+  {
+    airline: { name: 'Qatar Airways', nameFa: 'قطر ایرویز', code: 'QTR', iata: 'QR' },
+    transitHub: 'Hamad International',
+    transitHubIata: 'DOH',
+    transitHubNameFa: 'دوحه (DOH)',
+    flightPrefix1: 'QR-491',
+    flightPrefix2: 'QR-163',
+    avgLeg1Hours: 2.2,
+    avgLeg2Hours: 14.25,
+    layoverMinHours: 2.0,
+    layoverMaxHours: 4.5,
+    baggagePolicy: '۲ بسته ۲۳ کیلوگرم (46KG)',
+    baseFareRial: 570_000_000, // ~57M Tomans
+  },
+  {
+    airline: { name: 'Emirates', nameFa: 'هواپیمایی امارات', code: 'UAE', iata: 'EK' },
+    transitHub: 'Dubai International',
+    transitHubIata: 'DXB',
+    transitHubNameFa: 'دبی (DXB)',
+    flightPrefix1: 'EK-972',
+    flightPrefix2: 'EK-241',
+    avgLeg1Hours: 2.3,
+    avgLeg2Hours: 14.5,
+    layoverMinHours: 2.5,
+    layoverMaxHours: 5.5,
+    baggagePolicy: '۲ بسته ۲۳ کیلوگرم (46KG)',
+    baseFareRial: 610_000_000, // ~61M Tomans
+  },
+  {
+    airline: { name: 'Pegasus Airlines', nameFa: 'پگاسوس ایرلاینز', code: 'PGT', iata: 'PC' },
+    transitHub: 'Istanbul Sabiha Gokcen',
+    transitHubIata: 'SAW',
+    transitHubNameFa: 'استانبول صبیحه (SAW)',
+    flightPrefix1: 'PC-513',
+    flightPrefix2: 'PC-704',
+    avgLeg1Hours: 3.5,
+    avgLeg2Hours: 11.0,
+    layoverMinHours: 3.5,
+    layoverMaxHours: 6.5,
+    baggagePolicy: '۱ بسته ۲۰ کیلوگرم (20KG)',
+    baseFareRial: 440_000_000, // ~44M Tomans
+  },
+  {
+    airline: { name: 'Lufthansa', nameFa: 'لوفت‌هانزا', code: 'DLH', iata: 'LH' },
+    transitHub: 'Frankfurt Airport',
+    transitHubIata: 'FRA',
+    transitHubNameFa: 'فرانکفورت (FRA)',
+    flightPrefix1: 'LH-601',
+    flightPrefix2: 'LH-470',
+    avgLeg1Hours: 5.25,
+    avgLeg2Hours: 8.75,
+    layoverMinHours: 2.0,
+    layoverMaxHours: 4.5,
+    baggagePolicy: '۲ بسته ۲۳ کیلوگرم (46KG)',
+    baseFareRial: 640_000_000, // ~64M Tomans
+  },
+  {
+    airline: { name: 'Austrian Airlines', nameFa: 'اتریش ایرلاینز', code: 'AUA', iata: 'OS' },
+    transitHub: 'Vienna International',
+    transitHubIata: 'VIE',
+    transitHubNameFa: 'وین (VIE)',
+    flightPrefix1: 'OS-872',
+    flightPrefix2: 'OS-71',
+    avgLeg1Hours: 4.75,
+    avgLeg2Hours: 9.25,
+    layoverMinHours: 2.2,
+    layoverMaxHours: 4.8,
+    baggagePolicy: '۲ بسته ۲۳ کیلوگرم (46KG)',
+    baseFareRial: 615_000_000, // ~61.5M Tomans
+  },
 ];
 
 let nextSessionId = 5000;
@@ -218,162 +328,284 @@ export function createSearchSession(rawPayload: any): SearchSession {
   const destinationName = destApt ? `${destApt.city_fa || destApt.city_en} (${destCode})` : destCode;
 
   // Determine domestic or international
-  const isDomestic =
-    (!originApt || originApt.country_code === 'IR') &&
-    (!destApt || destApt.country_code === 'IR');
+  const originCountry = originApt?.country_code || (['THR', 'IKA', 'MHD', 'SYZ', 'IFN', 'TBZ', 'KIH', 'GSM', 'BND', 'AWZ'].includes(originCode) ? 'IR' : '');
+  const destCountry = destApt?.country_code || (['YYZ', 'YTO', 'YVR', 'YUL', 'YYC'].includes(destCode) ? 'CA' : ['JFK', 'LAX', 'ORD', 'SFO', 'MIA', 'IAD'].includes(destCode) ? 'US' : '');
 
-  // Compute flight distance & realistic duration
-  let distanceKm = 800; // default
+  const isDomestic = originCountry === 'IR' && destCountry === 'IR';
+
+  // Compute flight geodesic distance
+  let distanceKm = 850;
   if (originApt?.lat && originApt?.lon && destApt?.lat && destApt?.lon) {
     distanceKm = Math.max(150, getDistanceKm(originApt.lat, originApt.lon, destApt.lat, destApt.lon));
+  } else if (originCountry === 'IR' && (destCountry === 'CA' || destCountry === 'US')) {
+    distanceKm = 9850;
   }
 
-  // Cruise speed 750 km/h + taxi/takeoff/landing buffer
-  const baseFlightDurationMin = Math.max(45, Math.round((distanceKm / 750) * 60) + 20);
-
-  // Airline pool selection
-  const airlinePool = isDomestic ? IRAN_DOMESTIC_AIRLINES : INTERNATIONAL_AIRLINES;
-
-  // Pricing scale
-  const basePricePerKm = isDomestic ? 13500 : 45000;
-  const baseFare = Math.round(Math.max(12000000, distanceKm * basePricePerKm));
-  const cabinMultiplier = cabin === 'business' ? 2.2 : cabin === 'first' ? 3.5 : 1.0;
+  // Route feasibility check:
+  // Is a direct flight commercially and physically possible?
+  // Fact: There are NEVER direct flights between Iran and North America (Canada/USA) or Australia/New Zealand!
+  // Distance > 3,800 km from Iran cannot be direct.
+  const isNorthAmerica = ['CA', 'US'].includes(destCountry) || ['CA', 'US'].includes(originCountry);
+  const isOceania = ['AU', 'NZ'].includes(destCountry) || ['AU', 'NZ'].includes(originCountry);
+  const isDirectPossible = isDomestic || (!isNorthAmerica && !isOceania && distanceKm <= 3600);
 
   // Seeded PRNG for route + date: Ensures deterministic results for same search, but dynamic across routes/dates!
   const prng = createPrng(`${originCode}-${destCode}-${depDate}-${cabin}`);
 
-  // Generate 6 to 9 realistic scheduled flights throughout the day
-  const flightCount = 6 + Math.floor(prng() * 4); // 6, 7, 8 or 9 flights
-  const departureSlots = [
-    { hour: 5, min: 30 + Math.floor(prng() * 25) },
-    { hour: 7, min: 10 + Math.floor(prng() * 30) },
-    { hour: 9, min: 15 + Math.floor(prng() * 30) },
-    { hour: 11, min: 45 + Math.floor(prng() * 30) },
-    { hour: 14, min: 20 + Math.floor(prng() * 25) },
-    { hour: 16, min: 40 + Math.floor(prng() * 30) },
-    { hour: 19, min: 10 + Math.floor(prng() * 35) },
-    { hour: 21, min: 25 + Math.floor(prng() * 30) },
-    { hour: 23, min: 5 + Math.floor(prng() * 20) },
-  ].slice(0, flightCount);
-
   let totalRawOffers = 0;
   const groupedCards: GroupedFlightCard[] = [];
 
-  departureSlots.forEach((slot, idx) => {
-    // Pick airline deterministically
-    const airlineIdx = Math.floor(prng() * airlinePool.length);
-    const airline = airlinePool[airlineIdx];
+  const cabinMultiplier = cabin === 'business' ? 2.3 : cabin === 'first' ? 3.6 : 1.0;
 
-    // Flight number (e.g. W5-1024, IR-452)
-    const flightNumDigits = 100 + Math.floor(prng() * 8900);
-    const flightNumber = `${airline.iata}-${flightNumDigits}`;
+  // CASE 1: Long-haul connecting flight (e.g. Tehran to Toronto / Canada / USA)
+  if (isNorthAmerica || !isDirectPossible) {
+    // Select 5 to 7 realistic connecting flights using authorized international transit carriers
+    const carriersPool = NORTH_AMERICA_CONNECTING_CARRIERS;
+    const flightCount = 5 + Math.floor(prng() * 3); // 5, 6, or 7 flights
 
-    // Duration variation (+/- 10 minutes)
-    const durationOffset = Math.floor((prng() - 0.5) * 20);
-    const durationMinutes = Math.max(40, baseFlightDurationMin + durationOffset);
-    const durH = Math.floor(durationMinutes / 60);
-    const durM = durationMinutes % 60;
-    const durationStr = `${durH}h ${durM}m`;
+    const depHourSlots = [
+      { hour: 3, min: 45 },
+      { hour: 5, min: 20 },
+      { hour: 7, min: 40 },
+      { hour: 11, min: 15 },
+      { hour: 15, min: 30 },
+      { hour: 19, min: 10 },
+      { hour: 22, min: 35 },
+    ].slice(0, flightCount);
 
-    // Time calculations
-    const cleanHour = Math.min(23, Math.max(0, slot.hour + Math.floor(slot.min / 60)));
-    const cleanMin = Math.min(59, Math.max(0, slot.min % 60));
-    const depDateStr = (depDate && String(depDate).slice(0, 10)) || '2026-06-02';
-    const depH = String(cleanHour).padStart(2, '0');
-    const depM = String(cleanMin).padStart(2, '0');
-    const departureIso = `${depDateStr}T${depH}:${depM}:00Z`;
+    depHourSlots.forEach((slot, idx) => {
+      const carrier = carriersPool[idx % carriersPool.length];
+      const layoverHours = carrier.layoverMinHours + prng() * (carrier.layoverMaxHours - carrier.layoverMinHours);
+      const totalHours = carrier.avgLeg1Hours + layoverHours + carrier.avgLeg2Hours;
+      const durationMinutes = Math.round(totalHours * 60);
 
-    // Arrival time
-    const depDateObj = new Date(departureIso);
-    const validDepTime = isNaN(depDateObj.getTime()) ? Date.now() : depDateObj.getTime();
-    const arrDateObj = new Date(validDepTime + durationMinutes * 60 * 1000);
-    const arrivalIso = arrDateObj.toISOString();
+      const durH = Math.floor(durationMinutes / 60);
+      const durM = durationMinutes % 60;
+      const durationStr = `${durH}h ${durM}m`;
 
-    const isCharter = prng() > 0.65;
-    const stops = !isDomestic && distanceKm > 3500 && prng() > 0.5 ? 1 : 0;
+      const layoverH = Math.floor(layoverHours);
+      const layoverM = Math.round((layoverHours - layoverH) * 60);
+      const layoverStr = `${layoverH}h ${layoverM}m`;
 
-    // Generate canonical BuyO grouping key
-    const { groupingKey, flightHash } = generateFlightGroupingKey({
-      airlineCode: airline.iata,
-      flightNumber,
-      origin: originCode,
-      destination: destCode,
-      departureAt: departureIso,
-      cabin,
-    });
+      // Times
+      const depDateStr = (depDate && String(depDate).slice(0, 10)) || '2026-06-02';
+      const depH = String(slot.hour).padStart(2, '0');
+      const depM = String(slot.min).padStart(2, '0');
+      const departureIso = `${depDateStr}T${depH}:${depM}:00Z`;
 
-    // Base fare for this specific flight
-    const timeDemandFactor = (slot.hour >= 8 && slot.hour <= 18) ? 1.08 : 0.95;
-    const randomVariation = 0.94 + prng() * 0.12;
-    const corePrice = Math.round(baseFare * cabinMultiplier * timeDemandFactor * randomVariation);
+      const depTimeMs = new Date(departureIso).getTime();
+      const arrTimeMs = depTimeMs + durationMinutes * 60 * 1000;
+      const arrivalIso = new Date(arrTimeMs).toISOString();
 
-    // Generate provider offers for requested crawlers
-    const providerOffers: ProviderOffer[] = [];
+      // Combined flight number for connecting journey (e.g. TK-871 / TK-17)
+      const flightNumber = `${carrier.flightPrefix1} / ${carrier.flightPrefix2}`;
 
-    // Each crawler has slight scraped pricing variation, baggage, and seat inventory
-    requestedProviders.forEach((prov) => {
-      // Alibaba, FlyToday, SafarMarket slight price differentials
-      let provPriceDelta = 1.0;
-      if (prov === 'flytoday') provPriceDelta = 0.97 + (prng() * 0.04);
-      else if (prov === 'alibaba') provPriceDelta = 0.98 + (prng() * 0.05);
-      else if (prov === 'safarmarket') provPriceDelta = 0.96 + (prng() * 0.06);
-
-      // Round to nearest 50,000 Rial
-      const totalPrice = Math.round((corePrice * provPriceDelta) / 50000) * 50000;
-      const taxAmount = Math.round(totalPrice * 0.09);
-      const basePrice = totalPrice - taxAmount;
-
-      const seatsRemaining = 2 + Math.floor(prng() * 8);
-      const baggage = isDomestic ? '20 KG Included' : '30 KG Included';
-
-      totalRawOffers += 1;
-      providerOffers.push({
-        provider: prov,
-        providerName: providerNames[prov],
-        providerOfferRef: `${prov}-${flightHash}-${flightNumber}`,
-        totalPrice,
-        basePrice,
-        taxAmount,
-        currency: 'IRR',
-        baggage,
-        seatsRemaining,
-        cancellationPolicy: isCharter ? 'Charter Rules / Jariemeh' : 'Standard IATA Airline Rules',
-        isCharter,
-        cabin,
-        deepLink: `https://${prov}.com/flights/checkout?flight=${flightNumber}&key=${flightHash}`,
-      });
-    });
-
-    if (providerOffers.length > 0) {
-      providerOffers.sort((a, b) => a.totalPrice - b.totalPrice);
-      const bestPrice = providerOffers[0];
-      const highestPrice = providerOffers[providerOffers.length - 1];
-      const savings = highestPrice.totalPrice - bestPrice.totalPrice;
-
-      groupedCards.push({
-        id: flightHash,
-        groupingKey,
-        airline,
+      // Canonical BuyO grouping key for connecting itinerary
+      const { groupingKey, flightHash } = generateFlightGroupingKey({
+        airlineCode: carrier.airline.iata,
         flightNumber,
         origin: originCode,
-        originName,
         destination: destCode,
-        destinationName,
         departureAt: departureIso,
-        arrivalAt: arrivalIso,
-        duration: durationStr,
-        durationMinutes,
-        stops,
         cabin,
-        isDomestic,
-        providers: providerOffers,
-        providerCount: providerOffers.length,
-        bestPrice,
-        highestPrice,
-        savings,
       });
-    }
-  });
+
+      // Price calculation: realistic international long-haul price (~45M to 85M Tomans)
+      const baseFare = carrier.baseFareRial;
+      const timeFactor = (slot.hour >= 7 && slot.hour <= 16) ? 1.06 : 0.96;
+      const noise = 0.93 + prng() * 0.14;
+      const corePrice = Math.round(baseFare * cabinMultiplier * timeFactor * noise);
+
+      const providerOffers: ProviderOffer[] = [];
+
+      requestedProviders.forEach((prov) => {
+        let provPriceDelta = 1.0;
+        if (prov === 'flytoday') provPriceDelta = 0.975 + (prng() * 0.03);
+        else if (prov === 'alibaba') provPriceDelta = 0.985 + (prng() * 0.04);
+        else if (prov === 'safarmarket') provPriceDelta = 0.965 + (prng() * 0.05);
+
+        // Round to nearest 100,000 Rial
+        const totalPrice = Math.round((corePrice * provPriceDelta) / 100000) * 100000;
+        const taxAmount = Math.round(totalPrice * 0.08);
+        const basePrice = totalPrice - taxAmount;
+        const seatsRemaining = 2 + Math.floor(prng() * 7);
+
+        totalRawOffers += 1;
+        providerOffers.push({
+          provider: prov,
+          providerName: providerNames[prov],
+          providerOfferRef: `${prov}-${flightHash}-${carrier.airline.iata}`,
+          totalPrice,
+          basePrice,
+          taxAmount,
+          currency: 'IRR',
+          baggage: carrier.baggagePolicy,
+          seatsRemaining,
+          cancellationPolicy: 'قوانین کنسلی بین‌المللی ایرلاین (IATA Cancellation Rules)',
+          isCharter: false,
+          cabin,
+          deepLink: `https://${prov}.com/flights/checkout?flight=${encodeURIComponent(flightNumber)}&key=${flightHash}`,
+        });
+      });
+
+      if (providerOffers.length > 0) {
+        providerOffers.sort((a, b) => a.totalPrice - b.totalPrice);
+        const bestPrice = providerOffers[0];
+        const highestPrice = providerOffers[providerOffers.length - 1];
+        const savings = highestPrice.totalPrice - bestPrice.totalPrice;
+
+        groupedCards.push({
+          id: flightHash,
+          groupingKey,
+          airline: carrier.airline,
+          flightNumber,
+          origin: originCode,
+          originName,
+          destination: destCode,
+          destinationName,
+          departureAt: departureIso,
+          arrivalAt: arrivalIso,
+          duration: durationStr,
+          durationMinutes,
+          stops: 1,
+          stopInfo: `۱ توقف در ${carrier.transitHubNameFa}`,
+          transitCity: carrier.transitHubNameFa,
+          transitCities: [carrier.transitHubIata],
+          transitInfo: `۱ توقف در ${carrier.transitHubNameFa} (${layoverStr})`,
+          layoverDuration: layoverStr,
+          cabin,
+          isDomestic: false,
+          providers: providerOffers,
+          providerCount: providerOffers.length,
+          bestPrice,
+          highestPrice,
+          savings,
+        });
+      }
+    });
+  } else {
+    // CASE 2: Direct domestic or direct regional international flight (e.g. Tehran-Mashhad or Tehran-Istanbul)
+    const airlinePool = isDomestic ? IRAN_DOMESTIC_AIRLINES : REGIONAL_INTERNATIONAL_AIRLINES;
+    const baseFlightDurationMin = Math.max(45, Math.round((distanceKm / 750) * 60) + 20);
+
+    const basePricePerKm = isDomestic ? 16500 : 38000;
+    const baseFare = Math.round(Math.max(14000000, distanceKm * basePricePerKm));
+
+    const flightCount = 6 + Math.floor(prng() * 4);
+    const departureSlots = [
+      { hour: 5, min: 30 + Math.floor(prng() * 25) },
+      { hour: 7, min: 10 + Math.floor(prng() * 30) },
+      { hour: 9, min: 15 + Math.floor(prng() * 30) },
+      { hour: 11, min: 45 + Math.floor(prng() * 30) },
+      { hour: 14, min: 20 + Math.floor(prng() * 25) },
+      { hour: 16, min: 40 + Math.floor(prng() * 30) },
+      { hour: 19, min: 10 + Math.floor(prng() * 35) },
+      { hour: 21, min: 25 + Math.floor(prng() * 30) },
+      { hour: 23, min: 5 + Math.floor(prng() * 20) },
+    ].slice(0, flightCount);
+
+    departureSlots.forEach((slot) => {
+      const airlineIdx = Math.floor(prng() * airlinePool.length);
+      const airline = airlinePool[airlineIdx];
+      const flightNumDigits = 100 + Math.floor(prng() * 8900);
+      const flightNumber = `${airline.iata}-${flightNumDigits}`;
+
+      const durationOffset = Math.floor((prng() - 0.5) * 16);
+      const durationMinutes = Math.max(40, baseFlightDurationMin + durationOffset);
+      const durH = Math.floor(durationMinutes / 60);
+      const durM = durationMinutes % 60;
+      const durationStr = `${durH}h ${durM}m`;
+
+      const cleanHour = Math.min(23, Math.max(0, slot.hour + Math.floor(slot.min / 60)));
+      const cleanMin = Math.min(59, Math.max(0, slot.min % 60));
+      const depDateStr = (depDate && String(depDate).slice(0, 10)) || '2026-06-02';
+      const depH = String(cleanHour).padStart(2, '0');
+      const depM = String(cleanMin).padStart(2, '0');
+      const departureIso = `${depDateStr}T${depH}:${depM}:00Z`;
+
+      const depTimeMs = new Date(departureIso).getTime();
+      const arrTimeMs = (isNaN(depTimeMs) ? Date.now() : depTimeMs) + durationMinutes * 60 * 1000;
+      const arrivalIso = new Date(arrTimeMs).toISOString();
+
+      const isCharter = prng() > 0.65;
+
+      const { groupingKey, flightHash } = generateFlightGroupingKey({
+        airlineCode: airline.iata,
+        flightNumber,
+        origin: originCode,
+        destination: destCode,
+        departureAt: departureIso,
+        cabin,
+      });
+
+      const timeDemandFactor = (slot.hour >= 8 && slot.hour <= 18) ? 1.08 : 0.95;
+      const randomVariation = 0.94 + prng() * 0.12;
+      const corePrice = Math.round(baseFare * cabinMultiplier * timeDemandFactor * randomVariation);
+
+      const providerOffers: ProviderOffer[] = [];
+
+      requestedProviders.forEach((prov) => {
+        let provPriceDelta = 1.0;
+        if (prov === 'flytoday') provPriceDelta = 0.97 + (prng() * 0.04);
+        else if (prov === 'alibaba') provPriceDelta = 0.98 + (prng() * 0.05);
+        else if (prov === 'safarmarket') provPriceDelta = 0.96 + (prng() * 0.06);
+
+        const totalPrice = Math.round((corePrice * provPriceDelta) / 50000) * 50000;
+        const taxAmount = Math.round(totalPrice * 0.09);
+        const basePrice = totalPrice - taxAmount;
+
+        const seatsRemaining = 2 + Math.floor(prng() * 8);
+        const baggage = isDomestic ? '۲۰ کیلوگرم' : '۳۰ کیلوگرم';
+
+        totalRawOffers += 1;
+        providerOffers.push({
+          provider: prov,
+          providerName: providerNames[prov],
+          providerOfferRef: `${prov}-${flightHash}-${flightNumber}`,
+          totalPrice,
+          basePrice,
+          taxAmount,
+          currency: 'IRR',
+          baggage,
+          seatsRemaining,
+          cancellationPolicy: isCharter ? 'قوانین پرواز چارتر (جریمه بالا یا غیرقابل استرداد)' : 'قوانین استرداد سیستمی هواپیمایی کشوری',
+          isCharter,
+          cabin,
+          deepLink: `https://${prov}.com/flights/checkout?flight=${flightNumber}&key=${flightHash}`,
+        });
+      });
+
+      if (providerOffers.length > 0) {
+        providerOffers.sort((a, b) => a.totalPrice - b.totalPrice);
+        const bestPrice = providerOffers[0];
+        const highestPrice = providerOffers[providerOffers.length - 1];
+        const savings = highestPrice.totalPrice - bestPrice.totalPrice;
+
+        groupedCards.push({
+          id: flightHash,
+          groupingKey,
+          airline,
+          flightNumber,
+          origin: originCode,
+          originName,
+          destination: destCode,
+          destinationName,
+          departureAt: departureIso,
+          arrivalAt: arrivalIso,
+          duration: durationStr,
+          durationMinutes,
+          stops: 0,
+          cabin,
+          isDomestic,
+          providers: providerOffers,
+          providerCount: providerOffers.length,
+          bestPrice,
+          highestPrice,
+          savings,
+        });
+      }
+    });
+  }
 
   const session: SearchSession = {
     id: sessionId,
@@ -387,6 +619,9 @@ export function createSearchSession(rawPayload: any): SearchSession {
     providersRequested: requestedProviders,
     groupedCards,
     rawOffersCount: totalRawOffers,
+    routeNotice: !isDirectPossible
+      ? 'این مسیر پروازی فاقد پرواز مستقیم بوده و نتایج بر اساس پروازهای کانکشن با توقف ترانزیتی معتبر ارائه شده‌اند.'
+      : undefined,
     createdAt: Date.now(),
   };
 

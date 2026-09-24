@@ -25,6 +25,7 @@ import {
   Tooltip,
   theme,
   Progress,
+  Switch,
 } from 'antd';
 import faIR from 'antd/locale/fa_IR';
 import dayjs, { Dayjs } from 'dayjs';
@@ -52,6 +53,8 @@ import {
   EnvironmentOutlined,
   CodeOutlined,
   CompassOutlined,
+  SunOutlined,
+  MoonOutlined,
 } from '@ant-design/icons';
 import { ProviderLogo, ProviderType } from './components/ProviderLogo';
 import { GroupingKeyModal } from './components/GroupingKeyModal';
@@ -119,6 +122,10 @@ interface GroupedFlightCard {
   duration: string;
   durationMinutes: number;
   stops: number;
+  stopInfo?: string;
+  transitCity?: string;
+  transitInfo?: string;
+  layoverDuration?: string;
   cabin: string;
   isDomestic: boolean;
   providers: ProviderOffer[];
@@ -132,6 +139,32 @@ export type FlightSortOption = 'Cheapest' | 'Fastest' | 'Earliest';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>('grouped_search');
+
+  // Accessible Dark/Light Theme mode toggle with Ant Design theme integration
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('buyo_theme_mode');
+      if (saved) return saved === 'dark';
+      return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    } catch {
+      return true;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('buyo_theme_mode', isDarkMode ? 'dark' : 'light');
+      if (isDarkMode) {
+        document.documentElement.classList.add('dark');
+        document.documentElement.setAttribute('data-theme', 'dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, [isDarkMode]);
 
   // Flight Sorting Option: Strictly 'Cheapest' | 'Fastest' | 'Earliest' per user instruction
   const [sortBy, setSortBy] = useState<FlightSortOption>('Cheapest');
@@ -163,6 +196,7 @@ export default function App() {
   const [isSearching, setIsSearching] = useState(false);
   const [groupedFlights, setGroupedFlights] = useState<GroupedFlightCard[]>([]);
   const [rawOffersCount, setRawOffersCount] = useState(0);
+  const [routeNotice, setRouteNotice] = useState<string | null>(null);
 
   // Grouping Key Inspector modal
   const [inspectingFlight, setInspectingFlight] = useState<GroupedFlightCard | null>(null);
@@ -269,6 +303,7 @@ export default function App() {
         const offersData = await offersRes.json();
         setGroupedFlights(offersData.grouped_cards || []);
         setRawOffersCount(offersData.raw_offers_count || 0);
+        setRouteNotice(offersData.route_notice || null);
 
         // Persist session to Firebase Firestore
         logSearchToFirebase({
@@ -425,18 +460,35 @@ export default function App() {
       direction="rtl"
       locale={faIR}
       theme={{
-        algorithm: theme.darkAlgorithm,
+        algorithm: isDarkMode ? theme.darkAlgorithm : theme.defaultAlgorithm,
         token: {
           colorPrimary: '#2563eb',
-          colorBgBase: '#0b1120',
-          colorBgContainer: '#131e36',
-          colorBorder: '#223254',
+          colorBgBase: isDarkMode ? '#0b1120' : '#f8fafc',
+          colorBgContainer: isDarkMode ? '#131e36' : '#ffffff',
+          colorBorder: isDarkMode ? '#223254' : '#e2e8f0',
+          colorTextBase: isDarkMode ? '#f8fafc' : '#0f172a',
+          colorTextSecondary: isDarkMode ? '#94a3b8' : '#64748b',
           borderRadius: 12,
           fontFamily: "'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
         },
+        components: {
+          Card: {
+            colorBgContainer: isDarkMode ? '#111927' : '#ffffff',
+            colorBorderSecondary: isDarkMode ? '#1e293b' : '#f1f5f9',
+          },
+          Select: {
+            colorBgContainer: isDarkMode ? '#0f172a' : '#ffffff',
+            colorBorder: isDarkMode ? '#334155' : '#cbd5e1',
+          },
+        },
       }}
     >
-      <Layout className="min-h-screen bg-slate-950 text-slate-100 font-sans" dir="rtl">
+      <Layout
+        className={`min-h-screen font-sans transition-colors duration-200 ${
+          isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
+        }`}
+        dir="rtl"
+      >
         {/* Grouping Key Inspector Modal */}
         <GroupingKeyModal
           isOpen={Boolean(inspectingFlight)}
@@ -444,10 +496,16 @@ export default function App() {
           flightCard={inspectingFlight}
         />
 
-        {/* Header - Sleek, Responsive, Anti-Slop Navigation */}
-        <Header className="bg-[#0b1324]/95 border-b border-slate-800 px-3 sm:px-6 h-auto py-2.5 sm:py-3.5 backdrop-blur-md sticky top-0 z-50 shadow-lg">
+        {/* Header - Sleek, Responsive, Anti-Slop Navigation with Theme Switcher */}
+        <Header
+          className={`px-3 sm:px-6 h-auto py-2.5 sm:py-3.5 backdrop-blur-md sticky top-0 z-50 shadow-md border-b transition-colors duration-200 ${
+            isDarkMode
+              ? 'bg-[#0b1324]/95 border-slate-800 text-slate-100'
+              : 'bg-white/95 border-slate-200 text-slate-900'
+          }`}
+        >
           <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-            {/* Brand and Status row */}
+            {/* Brand and Status row with Accessibility Theme Toggle */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-gradient-to-tr from-amber-500 via-blue-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-blue-500/20 text-white flex-shrink-0">
@@ -458,24 +516,60 @@ export default function App() {
                     <span className="text-base sm:text-xl font-black tracking-tight bg-gradient-to-r from-amber-400 via-sky-300 to-blue-400 bg-clip-text text-transparent">
                       موتور تجمیع پرواز BuyO
                     </span>
-                    <span className="hidden sm:inline-block px-2 py-0.5 rounded text-[10px] font-mono bg-blue-900/50 text-blue-300 border border-blue-700/50">
+                    <span
+                      className={`hidden sm:inline-block px-2 py-0.5 rounded text-[10px] font-mono border ${
+                        isDarkMode
+                          ? 'bg-blue-900/50 text-blue-300 border-blue-700/50'
+                          : 'bg-blue-50 text-blue-700 border-blue-200'
+                      }`}
+                    >
                       Multi-Crawler
                     </span>
                     <span
                       className={`px-2 py-0.5 rounded text-[10px] font-mono border ${
                         firebaseConnected
-                          ? 'bg-amber-950/40 text-amber-300 border-amber-600/40'
-                          : 'bg-slate-800 text-slate-400 border-slate-700'
+                          ? isDarkMode
+                            ? 'bg-amber-950/40 text-amber-300 border-amber-600/40'
+                            : 'bg-amber-50 text-amber-700 border-amber-300'
+                          : isDarkMode
+                          ? 'bg-slate-800 text-slate-400 border-slate-700'
+                          : 'bg-slate-100 text-slate-500 border-slate-300'
                       }`}
                     >
                       {firebaseConnected ? '🔥 متصل' : 'آفلاین'}
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-400 m-0 hidden sm:block">
+                  <p className={`text-[11px] m-0 hidden sm:block ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                     تجمیع و گروه‌بندی هوشمند کراولرهای علی‌بابا، فلای‌تودی و سفرمارکت
                   </p>
                 </div>
               </div>
+
+              {/* Theme Mode Toggle with Ant Design Switch and Accessibility Tooltip */}
+              <Tooltip title={isDarkMode ? 'تغییر به تم روشن برای دسترسی‌پذیری و خوانایی در نور روز' : 'تغییر به تم تاریک'}>
+                <div
+                  onClick={() => setIsDarkMode(!isDarkMode)}
+                  role="button"
+                  tabIndex={0}
+                  aria-label="تغییر تم"
+                  className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border text-xs font-bold cursor-pointer transition-all select-none ${
+                    isDarkMode
+                      ? 'bg-slate-800/90 hover:bg-slate-800 text-amber-300 border-slate-700 shadow-inner'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300 shadow-sm'
+                  }`}
+                >
+                  <Switch
+                    size="small"
+                    checked={isDarkMode}
+                    onChange={(checked) => setIsDarkMode(checked)}
+                    checkedChildren={<MoonOutlined className="text-amber-200" />}
+                    unCheckedChildren={<SunOutlined className="text-amber-500" />}
+                  />
+                  <span className="text-[11px] font-medium hidden xs:inline-block">
+                    {isDarkMode ? 'تم تیره' : 'تم روشن'}
+                  </span>
+                </div>
+              </Tooltip>
             </div>
 
             {/* Navigation Tabs - Horizontally scrollable on mobile without wrapping */}
@@ -486,7 +580,9 @@ export default function App() {
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 flex-shrink-0 cursor-pointer ${
                   activeTab === 'grouped_search'
                     ? 'bg-blue-600 text-white shadow-md'
-                    : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800 hover:text-white'
+                    : isDarkMode
+                    ? 'bg-slate-800/80 text-slate-300 hover:bg-slate-800 hover:text-white'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900 border border-slate-200'
                 }`}
               >
                 <ApartmentOutlined />
@@ -498,7 +594,9 @@ export default function App() {
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 flex-shrink-0 cursor-pointer ${
                   activeTab === 'airports'
                     ? 'bg-blue-600 text-white shadow-md'
-                    : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800 hover:text-white'
+                    : isDarkMode
+                    ? 'bg-slate-800/80 text-slate-300 hover:bg-slate-800 hover:text-white'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900 border border-slate-200'
                 }`}
               >
                 <GlobalOutlined />
@@ -510,7 +608,9 @@ export default function App() {
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 flex-shrink-0 cursor-pointer ${
                   activeTab === 'key_sandbox'
                     ? 'bg-blue-600 text-white shadow-md'
-                    : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800 hover:text-white'
+                    : isDarkMode
+                    ? 'bg-slate-800/80 text-slate-300 hover:bg-slate-800 hover:text-white'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900 border border-slate-200'
                 }`}
               >
                 <KeyOutlined />
@@ -522,7 +622,9 @@ export default function App() {
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 flex-shrink-0 cursor-pointer ${
                   activeTab === 'db_bootstrap'
                     ? 'bg-blue-600 text-white shadow-md'
-                    : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800 hover:text-white'
+                    : isDarkMode
+                    ? 'bg-slate-800/80 text-slate-300 hover:bg-slate-800 hover:text-white'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900 border border-slate-200'
                 }`}
               >
                 <DatabaseOutlined />
@@ -539,19 +641,29 @@ export default function App() {
             <div className="space-y-6">
               {/* Dynamic Flight Search Panel */}
               <Card
-                className="border-slate-800 bg-slate-900/90 shadow-2xl rounded-2xl"
+                className={`transition-colors duration-200 border rounded-2xl shadow-xl ${
+                  isDarkMode ? 'border-slate-800 bg-slate-900/90' : 'border-slate-200 bg-white'
+                }`}
                 styles={{ body: { padding: '24px' } }}
               >
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 pb-3 border-b border-slate-800">
+                <div
+                  className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 pb-3 border-b ${
+                    isDarkMode ? 'border-slate-800' : 'border-slate-200'
+                  }`}
+                >
                   <div className="flex items-center gap-2.5">
-                    <div className="p-2 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-xl flex-shrink-0">
+                    <div className="p-2 bg-blue-500/10 border border-blue-500/20 text-blue-500 rounded-xl flex-shrink-0">
                       <SearchOutlined className="text-base" />
                     </div>
                     <div>
-                      <h2 className="text-sm sm:text-base font-extrabold text-white m-0">
+                      <h2
+                        className={`text-sm sm:text-base font-extrabold m-0 ${
+                          isDarkMode ? 'text-white' : 'text-slate-900'
+                        }`}
+                      >
                         جستجوی پرواز و استعلام چندگانه
                       </h2>
-                      <p className="text-[11px] text-slate-400 m-0">
+                      <p className={`text-[11px] m-0 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                         ادغام هوشمند و مقایسه نرخ‌ها از ۳ تامین‌کننده
                       </p>
                     </div>
@@ -559,7 +671,9 @@ export default function App() {
 
                   {/* Active Providers Checkboxes */}
                   <div className="flex items-center gap-2 text-xs flex-wrap">
-                    <span className="text-slate-400 font-semibold ml-1">تامین‌کنندگان:</span>
+                    <span className={`font-semibold ml-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                      تامین‌کنندگان:
+                    </span>
                     <Checkbox.Group
                       value={selectedProviders}
                       onChange={(checkedValues) => {
@@ -570,13 +684,13 @@ export default function App() {
                     >
                       <Space size="middle">
                         <Checkbox value="alibaba">
-                          <span className="text-amber-400 font-bold text-xs">علی‌بابا</span>
+                          <span className="text-amber-500 font-bold text-xs">علی‌بابا</span>
                         </Checkbox>
                         <Checkbox value="flytoday">
-                          <span className="text-sky-400 font-bold text-xs">فلای‌تودی</span>
+                          <span className="text-sky-500 font-bold text-xs">فلای‌تودی</span>
                         </Checkbox>
                         <Checkbox value="safarmarket">
-                          <span className="text-emerald-400 font-bold text-xs">سفرمارکت</span>
+                          <span className="text-emerald-500 font-bold text-xs">سفرمارکت</span>
                         </Checkbox>
                       </Space>
                     </Checkbox.Group>
@@ -587,11 +701,15 @@ export default function App() {
                 <Row gutter={[12, 12]} align="bottom">
                   {/* Origin */}
                   <Col xs={24} md={7}>
-                    <label className="block text-xs font-bold text-slate-300 mb-1.5 flex items-center justify-between">
+                    <label
+                      className={`block text-xs font-bold mb-1.5 flex items-center justify-between ${
+                        isDarkMode ? 'text-slate-300' : 'text-slate-700'
+                      }`}
+                    >
                       <span className="flex items-center gap-1.5">
-                        <EnvironmentOutlined className="text-blue-400" /> مبدا حرکت (Origin)
+                        <EnvironmentOutlined className="text-blue-500" /> مبدا حرکت (Origin)
                       </span>
-                      <span className="text-[11px] font-mono text-blue-400">{origin.code}</span>
+                      <span className="text-[11px] font-mono text-blue-500 font-bold">{origin.code}</span>
                     </label>
                     <Select
                       showSearch
@@ -638,11 +756,15 @@ export default function App() {
 
                   {/* Destination */}
                   <Col xs={24} md={7}>
-                    <label className="block text-xs font-bold text-slate-300 mb-1.5 flex items-center justify-between">
+                    <label
+                      className={`block text-xs font-bold mb-1.5 flex items-center justify-between ${
+                        isDarkMode ? 'text-slate-300' : 'text-slate-700'
+                      }`}
+                    >
                       <span className="flex items-center gap-1.5">
-                        <EnvironmentOutlined className="text-emerald-400" /> مقصد سفر (Destination)
+                        <EnvironmentOutlined className="text-emerald-500" /> مقصد سفر (Destination)
                       </span>
-                      <span className="text-[11px] font-mono text-emerald-400">{destination.code}</span>
+                      <span className="text-[11px] font-mono text-emerald-600 font-bold">{destination.code}</span>
                     </label>
                     <Select
                       showSearch
@@ -678,8 +800,12 @@ export default function App() {
 
                   {/* Departure Date */}
                   <Col xs={24} md={5}>
-                    <label className="block text-xs font-bold text-slate-300 mb-1.5 flex items-center gap-1.5">
-                      <ClockCircleOutlined className="text-amber-400" /> تاریخ پرواز (Date)
+                    <label
+                      className={`block text-xs font-bold mb-1.5 flex items-center gap-1.5 ${
+                        isDarkMode ? 'text-slate-300' : 'text-slate-700'
+                      }`}
+                    >
+                      <ClockCircleOutlined className="text-amber-500" /> تاریخ پرواز (Date)
                     </label>
                     <DatePicker
                       size="large"
@@ -708,32 +834,36 @@ export default function App() {
               </Card>
 
               {/* Aggregation & Deduplication Metric Bar */}
-              <div className="bg-slate-900/90 border border-slate-800 rounded-xl px-5 py-3.5 flex flex-wrap items-center justify-between gap-4 text-xs shadow-md">
+              <div
+                className={`border rounded-xl px-5 py-3.5 flex flex-wrap items-center justify-between gap-4 text-xs shadow-sm transition-colors duration-200 ${
+                  isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200'
+                }`}
+              >
                 <div className="flex items-center gap-5">
                   <div>
-                    <span className="text-slate-400">تعداد کل آفرهای استخراج‌شده: </span>
-                    <span className="font-black text-amber-400 font-mono text-sm mr-1">
+                    <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>تعداد کل آفرهای استخراج‌شده: </span>
+                    <span className="font-black text-amber-500 font-mono text-sm mr-1">
                       {rawOffersCount.toLocaleString('fa-IR')}
                     </span>
                   </div>
-                  <div className="h-4 w-[1px] bg-slate-800"></div>
+                  <div className={`h-4 w-[1px] ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'}`}></div>
                   <div>
-                    <span className="text-slate-400">پروازهای فیزیکی یکپارچه: </span>
-                    <span className="font-black text-emerald-400 font-mono text-sm mr-1">
+                    <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>پروازهای فیزیکی یکپارچه: </span>
+                    <span className="font-black text-emerald-500 font-mono text-sm mr-1">
                       {groupedFlights.length.toLocaleString('fa-IR')}
                     </span>
                   </div>
-                  <div className="h-4 w-[1px] bg-slate-800"></div>
+                  <div className={`h-4 w-[1px] ${isDarkMode ? 'bg-slate-800' : 'bg-slate-200'}`}></div>
                   <div>
-                    <span className="text-slate-400">پروازهای چندتامین‌کننده‌ای: </span>
-                    <span className="font-black text-blue-400 font-mono text-sm mr-1">
+                    <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>پروازهای چندتامین‌کننده‌ای: </span>
+                    <span className="font-black text-blue-500 font-mono text-sm mr-1">
                       {groupedFlights.filter((f) => f.providerCount > 1).length.toLocaleString('fa-IR')} پرواز
                     </span>
                   </div>
                 </div>
 
-                <div className="text-slate-400 font-mono text-xs flex items-center gap-1.5">
-                  <KeyOutlined className="text-amber-400" />
+                <div className={`font-mono text-xs flex items-center gap-1.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                  <KeyOutlined className="text-amber-500" />
                   <span>فرمول کلید: FLIGHT_AIRLINE_NUM_ORG_DST_TIME_CABIN</span>
                 </div>
               </div>
@@ -782,13 +912,19 @@ export default function App() {
 
               {/* Flight Results Sorting Toolbar (STRICTLY Fastest, Cheapest, Earliest) */}
               <Card
-                className="border-slate-800 bg-slate-900/90 shadow-md rounded-xl"
+                className={`transition-colors duration-200 border rounded-xl shadow-sm ${
+                  isDarkMode ? 'border-slate-800 bg-slate-900/90' : 'border-slate-200 bg-white'
+                }`}
                 styles={{ body: { padding: '12px 16px' } }}
               >
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
-                    <div className="flex items-center gap-2 text-xs font-bold text-slate-200">
-                      <FilterOutlined className="text-blue-400" />
+                    <div
+                      className={`flex items-center gap-2 text-xs font-bold ${
+                        isDarkMode ? 'text-slate-200' : 'text-slate-700'
+                      }`}
+                    >
+                      <FilterOutlined className="text-blue-500" />
                       <span>مرتب‌سازی نتایج:</span>
                     </div>
 
@@ -806,17 +942,25 @@ export default function App() {
                     />
 
                     {/* Quick 1-Click Toggle Buttons for the 3 allowed options */}
-                    <div className="flex items-center gap-1 p-0.5 bg-slate-950 rounded-lg border border-slate-800 overflow-x-auto whitespace-nowrap scrollbar-none">
+                    <div
+                      className={`flex items-center gap-1 p-0.5 rounded-lg border overflow-x-auto whitespace-nowrap scrollbar-none ${
+                        isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-100 border-slate-200'
+                      }`}
+                    >
                       <button
                         type="button"
                         onClick={() => setSortBy('Cheapest')}
                         className={`px-2.5 py-1 text-xs font-bold rounded-md transition cursor-pointer flex items-center gap-1 ${
                           sortBy === 'Cheapest'
-                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                            : 'text-slate-400 hover:text-slate-200'
+                            ? isDarkMode
+                              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                              : 'bg-white text-amber-700 shadow-sm border border-amber-300'
+                            : isDarkMode
+                            ? 'text-slate-400 hover:text-slate-200'
+                            : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
-                        <TagOutlined className="text-amber-400 text-[10px]" />
+                        <TagOutlined className="text-amber-500 text-[10px]" />
                         ارزان‌ترین
                       </button>
                       <button
@@ -824,11 +968,15 @@ export default function App() {
                         onClick={() => setSortBy('Fastest')}
                         className={`px-2.5 py-1 text-xs font-bold rounded-md transition cursor-pointer flex items-center gap-1 ${
                           sortBy === 'Fastest'
-                            ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40'
-                            : 'text-slate-400 hover:text-slate-200'
+                            ? isDarkMode
+                              ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40'
+                              : 'bg-white text-sky-700 shadow-sm border border-sky-300'
+                            : isDarkMode
+                            ? 'text-slate-400 hover:text-slate-200'
+                            : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
-                        <ThunderboltOutlined className="text-sky-400 text-[10px]" />
+                        <ThunderboltOutlined className="text-sky-500 text-[10px]" />
                         سریع‌ترین
                       </button>
                       <button
@@ -836,20 +984,28 @@ export default function App() {
                         onClick={() => setSortBy('Earliest')}
                         className={`px-2.5 py-1 text-xs font-bold rounded-md transition cursor-pointer flex items-center gap-1 ${
                           sortBy === 'Earliest'
-                            ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40'
-                            : 'text-slate-400 hover:text-slate-200'
+                            ? isDarkMode
+                              ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40'
+                              : 'bg-white text-indigo-700 shadow-sm border border-indigo-300'
+                            : isDarkMode
+                            ? 'text-slate-400 hover:text-slate-200'
+                            : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
-                        <ClockCircleOutlined className="text-indigo-400 text-[10px]" />
+                        <ClockCircleOutlined className="text-indigo-500 text-[10px]" />
                         زودترین
                       </button>
                     </div>
                   </div>
 
                   {/* Active Sort Explanation */}
-                  <div className="text-[11px] text-slate-400 flex items-center gap-1.5 self-start sm:self-auto">
-                    <span className="text-slate-500">معیار:</span>
-                    <span className="font-semibold text-slate-300">
+                  <div
+                    className={`text-[11px] flex items-center gap-1.5 self-start sm:self-auto ${
+                      isDarkMode ? 'text-slate-400' : 'text-slate-500'
+                    }`}
+                  >
+                    <span className={isDarkMode ? 'text-slate-500' : 'text-slate-400'}>معیار:</span>
+                    <span className={`font-semibold ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
                       {sortBy === 'Cheapest' && '💰 ارزان‌ترین نرخ صادرشده به اولویت'}
                       {sortBy === 'Fastest' && '⚡ کوتاه‌ترین مدت زمان پرواز'}
                       {sortBy === 'Earliest' && '🌅 اولین زمان حرکت در طول شبانه‌روز'}
@@ -860,14 +1016,33 @@ export default function App() {
 
               {/* Grouped Flight Cards List */}
               {isSearching ? (
-                <div className="py-20 text-center space-y-3 bg-slate-900/50 rounded-2xl border border-slate-800">
+                <div
+                  className={`py-20 text-center space-y-3 rounded-2xl border transition-colors ${
+                    isDarkMode ? 'bg-slate-900/50 border-slate-800' : 'bg-white border-slate-200'
+                  }`}
+                >
                   <Spin size="large" />
-                  <p className="text-slate-300 font-bold text-sm">
+                  <p className={`font-bold text-sm ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
                     در حال جستجو و ادغام پروازها از علی‌بابا، فلای‌تودی و سفرمارکت...
                   </p>
                 </div>
               ) : (
                 <div className="space-y-3.5">
+                  {routeNotice && (
+                    <div
+                      className={`p-3.5 sm:p-4 rounded-xl border flex items-start gap-3 transition-colors ${
+                        isDarkMode
+                          ? 'bg-amber-950/30 border-amber-700/50 text-amber-200'
+                          : 'bg-amber-50/90 border-amber-200 text-amber-900 shadow-sm'
+                      }`}
+                    >
+                      <InfoCircleOutlined className="text-amber-500 mt-0.5 text-base flex-shrink-0" />
+                      <div className="text-xs leading-relaxed">
+                        <span className="font-extrabold block mb-0.5">مسیر بین‌المللی با پروازهای ترانزیتی و توقف (Connecting Flights):</span>
+                        <span>{routeNotice}</span>
+                      </div>
+                    </div>
+                  )}
                   {sortedFlights.map((card) => {
                     const isCheapest = card.bestPrice.totalPrice === minPrice;
                     const isFastest = card.durationMinutes === minDuration;
@@ -891,12 +1066,16 @@ export default function App() {
                   })}
 
                   {sortedFlights.length === 0 && !isSearching && (
-                    <Card className="text-center py-16 border-slate-800 bg-slate-900/60 rounded-2xl">
-                      <CompassOutlined className="text-4xl text-slate-600 mb-3" />
-                      <div className="text-base font-bold text-slate-300">
+                    <Card
+                      className={`text-center py-16 rounded-2xl border transition-colors ${
+                        isDarkMode ? 'border-slate-800 bg-slate-900/60' : 'border-slate-200 bg-white'
+                      }`}
+                    >
+                      <CompassOutlined className={`text-4xl mb-3 ${isDarkMode ? 'text-slate-600' : 'text-slate-400'}`} />
+                      <div className={`text-base font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-800'}`}>
                         هیچ پروازی برای مسیر {origin.code} به {destination.code} یافت نشد
                       </div>
-                      <p className="text-xs text-slate-500 mt-1">
+                      <p className={`text-xs mt-1 ${isDarkMode ? 'text-slate-500' : 'text-slate-500'}`}>
                         لطفا مبدا، مقصد یا تاریخ دیگری را برای استعلام مجدد انتخاب کنید.
                       </p>
                     </Card>
@@ -910,15 +1089,21 @@ export default function App() {
           {activeTab === 'airports' && (
             <div className="space-y-6">
               <Card
-                className="border-slate-800 bg-slate-900 rounded-2xl shadow-2xl"
+                className={`transition-colors duration-200 border rounded-2xl shadow-xl ${
+                  isDarkMode ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'
+                }`}
                 styles={{ body: { padding: '24px' } }}
               >
-                <div className="flex flex-wrap items-center justify-between gap-4 mb-5 pb-4 border-b border-slate-800">
+                <div
+                  className={`flex flex-wrap items-center justify-between gap-4 mb-5 pb-4 border-b ${
+                    isDarkMode ? 'border-slate-800' : 'border-slate-200'
+                  }`}
+                >
                   <div>
-                    <h2 className="text-base font-extrabold text-white m-0">
+                    <h2 className={`text-base font-extrabold m-0 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                       بانک فرودگاه‌ها و شهرهای بین‌المللی (۹,۳۲۰ رکورد)
                     </h2>
-                    <p className="text-xs text-slate-400 m-0">
+                    <p className={`text-xs m-0 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                       جستجوی بلادرنگ با نرمال‌سازی املای فارسی (ی/ي، ک/ك، نیم‌فاصله) و تجمیع فرودگاه‌های یک کلان‌شهر
                     </p>
                   </div>
@@ -942,14 +1127,24 @@ export default function App() {
                   {dirResults.map((city) => (
                     <Card
                       key={city.iata}
-                      className="border-slate-800 bg-slate-950/70 rounded-xl"
+                      className={`transition-colors border rounded-xl ${
+                        isDarkMode ? 'border-slate-800 bg-slate-950/70' : 'border-slate-200 bg-slate-50/70'
+                      }`}
                       styles={{ body: { padding: '16px 20px' } }}
                     >
-                      <div className="flex flex-wrap items-center justify-between gap-2 pb-2 mb-3 border-b border-slate-800">
+                      <div
+                        className={`flex flex-wrap items-center justify-between gap-2 pb-2 mb-3 border-b ${
+                          isDarkMode ? 'border-slate-800' : 'border-slate-200'
+                        }`}
+                      >
                         <div className="flex items-center gap-2">
-                          <EnvironmentOutlined className="text-blue-400" />
-                          <span className="font-extrabold text-white text-sm">{city.name}</span>
-                          <span className="text-xs text-slate-400">({city.countryName})</span>
+                          <EnvironmentOutlined className="text-blue-500" />
+                          <span className={`font-extrabold text-sm ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                            {city.name}
+                          </span>
+                          <span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                            ({city.countryName})
+                          </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Tag color="blue" className="font-mono font-bold text-xs">
@@ -966,11 +1161,17 @@ export default function App() {
                         {city.children?.map((child) => (
                           <div
                             key={child.iata}
-                            className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-between"
+                            className={`p-2.5 rounded-lg border flex items-center justify-between transition-colors ${
+                              isDarkMode
+                                ? 'bg-slate-900 border-slate-800'
+                                : 'bg-white border-slate-200 shadow-sm'
+                            }`}
                           >
                             <div>
-                              <div className="font-bold text-slate-200">{child.name}</div>
-                              <div className="text-[11px] text-slate-400">
+                              <div className={`font-bold ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>
+                                {child.name}
+                              </div>
+                              <div className={`text-[11px] ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                                 فرودگاه {child.isDomestic ? 'داخلی' : 'بین‌المللی'}
                               </div>
                             </div>
@@ -991,21 +1192,29 @@ export default function App() {
           {activeTab === 'key_sandbox' && (
             <div className="space-y-6">
               <Card
-                className="border-slate-800 bg-slate-900 rounded-2xl shadow-2xl"
+                className={`transition-colors duration-200 border rounded-2xl shadow-xl ${
+                  isDarkMode ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'
+                }`}
                 styles={{ body: { padding: '24px' } }}
               >
-                <div className="pb-4 mb-5 border-b border-slate-800">
-                  <h2 className="text-base font-extrabold text-white m-0">
+                <div
+                  className={`pb-4 mb-5 border-b ${
+                    isDarkMode ? 'border-slate-800' : 'border-slate-200'
+                  }`}
+                >
+                  <h2 className={`text-base font-extrabold m-0 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                     آزمایشگاه تولید کلید تجمیع پرواز (Deterministic Grouping Key Lab)
                   </h2>
-                  <p className="text-xs text-slate-400 m-0">
+                  <p className={`text-xs m-0 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                     فرمول رسمی استاندارد BuyO برای شناسایی پروازهای فیزیکی یکسان از کراولرهای مختلف
                   </p>
                 </div>
 
                 <Row gutter={[16, 16]}>
                   <Col xs={24} md={4}>
-                    <label className="block text-xs font-bold text-slate-400 mb-1">کد ایرلاین (IATA)</label>
+                    <label className={`block text-xs font-bold mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                      کد ایرلاین (IATA)
+                    </label>
                     <Input
                       value={sandboxForm.airlineCode}
                       onChange={(e) =>
@@ -1015,7 +1224,9 @@ export default function App() {
                     />
                   </Col>
                   <Col xs={24} md={4}>
-                    <label className="block text-xs font-bold text-slate-400 mb-1">شماره پرواز</label>
+                    <label className={`block text-xs font-bold mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                      شماره پرواز
+                    </label>
                     <Input
                       value={sandboxForm.flightNumber}
                       onChange={(e) =>
@@ -1025,7 +1236,9 @@ export default function App() {
                     />
                   </Col>
                   <Col xs={24} md={4}>
-                    <label className="block text-xs font-bold text-slate-400 mb-1">مبدا (IATA)</label>
+                    <label className={`block text-xs font-bold mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                      مبدا (IATA)
+                    </label>
                     <Input
                       value={sandboxForm.origin}
                       onChange={(e) => setSandboxForm({ ...sandboxForm, origin: e.target.value.toUpperCase() })}
@@ -1033,7 +1246,9 @@ export default function App() {
                     />
                   </Col>
                   <Col xs={24} md={4}>
-                    <label className="block text-xs font-bold text-slate-400 mb-1">مقصد (IATA)</label>
+                    <label className={`block text-xs font-bold mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                      مقصد (IATA)
+                    </label>
                     <Input
                       value={sandboxForm.destination}
                       onChange={(e) =>
@@ -1043,7 +1258,9 @@ export default function App() {
                     />
                   </Col>
                   <Col xs={24} md={5}>
-                    <label className="block text-xs font-bold text-slate-400 mb-1">زمان حرکت (ISO)</label>
+                    <label className={`block text-xs font-bold mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                      زمان حرکت (ISO)
+                    </label>
                     <Input
                       value={sandboxForm.departureAt}
                       onChange={(e) => setSandboxForm({ ...sandboxForm, departureAt: e.target.value })}
@@ -1051,7 +1268,9 @@ export default function App() {
                     />
                   </Col>
                   <Col xs={24} md={3}>
-                    <label className="block text-xs font-bold text-slate-400 mb-1">کلاس پروازی</label>
+                    <label className={`block text-xs font-bold mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+                      کلاس پروازی
+                    </label>
                     <Select
                       className="w-full"
                       value={sandboxForm.cabin}
@@ -1077,19 +1296,37 @@ export default function App() {
                 </div>
 
                 {sandboxResult && (
-                  <div className="mt-5 pt-4 border-t border-slate-800 space-y-4">
+                  <div
+                    className={`mt-5 pt-4 border-t space-y-4 ${
+                      isDarkMode ? 'border-slate-800' : 'border-slate-200'
+                    }`}
+                  >
                     <div>
-                      <span className="text-xs font-bold text-slate-300">کلید یکپارچه‌سازی متنی (Canonical Key):</span>
-                      <pre className="mt-1 bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-mono text-emerald-400 break-all select-all">
+                      <span className={`text-xs font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                        کلید یکپارچه‌سازی متنی (Canonical Key):
+                      </span>
+                      <pre
+                        className={`mt-1 p-3 rounded-xl border text-xs font-mono break-all select-all ${
+                          isDarkMode
+                            ? 'bg-slate-950 border-slate-800 text-emerald-400'
+                            : 'bg-slate-100 border-slate-300 text-emerald-700'
+                        }`}
+                      >
                         {sandboxResult.groupingKey}
                       </pre>
                     </div>
 
                     <div>
-                      <span className="text-xs font-bold text-slate-300">
+                      <span className={`text-xs font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
                         شناسه قطعی پرواز (SHA-256 Flight Hash):
                       </span>
-                      <pre className="mt-1 bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-mono text-amber-300 select-all">
+                      <pre
+                        className={`mt-1 p-3 rounded-xl border text-xs font-mono select-all ${
+                          isDarkMode
+                            ? 'bg-slate-950 border-slate-800 text-amber-300'
+                            : 'bg-slate-100 border-slate-300 text-amber-700'
+                        }`}
+                      >
                         {sandboxResult.flightHash}
                       </pre>
                     </div>
@@ -1103,19 +1340,25 @@ export default function App() {
           {activeTab === 'db_bootstrap' && (
             <div className="space-y-6">
               <Card
-                className="border-slate-800 bg-slate-900 rounded-2xl shadow-2xl"
+                className={`transition-colors duration-200 border rounded-2xl shadow-xl ${
+                  isDarkMode ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'
+                }`}
                 styles={{ body: { padding: '24px' } }}
               >
-                <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-800">
+                <div
+                  className={`flex flex-wrap items-center justify-between gap-4 pb-4 border-b ${
+                    isDarkMode ? 'border-slate-800' : 'border-slate-200'
+                  }`}
+                >
                   <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl">
+                    <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 rounded-xl">
                       <DatabaseOutlined className="text-xl" />
                     </div>
                     <div>
-                      <h2 className="text-base font-extrabold text-white m-0">
+                      <h2 className={`text-base font-extrabold m-0 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                         راه‌اندازی دیتابیس و تزریق داده‌های مرجع (Reference Data Seed)
                       </h2>
-                      <p className="text-xs text-slate-400 m-0">
+                      <p className={`text-xs m-0 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                         ایجاد جداول ساختار داده و سیدینگ فرودگاه‌ها و خطوط هوایی بر اساس سند{' '}
                         <code>docs/LOCAL_ENV_BOOTSTRAP.md</code>
                       </p>
@@ -1137,47 +1380,63 @@ export default function App() {
                 {/* Database Metrics Grid */}
                 <Row gutter={[16, 16]} className="my-5">
                   <Col xs={24} sm={12} lg={6}>
-                    <Card className="bg-slate-950/70 border-slate-800 rounded-xl">
+                    <Card
+                      className={`rounded-xl border transition-colors ${
+                        isDarkMode ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200'
+                      }`}
+                    >
                       <Statistic
-                        title={<span className="text-slate-400 text-xs">فرودگاه‌ها (static_data)</span>}
+                        title={<span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>فرودگاه‌ها (static_data)</span>}
                         value={dbStatus?.airports_raw_count || 6778}
-                        prefix={<GlobalOutlined className="text-blue-400 ml-2" />}
-                        valueStyle={{ color: '#fff', fontFamily: 'monospace', fontWeight: 'bold' }}
+                        prefix={<GlobalOutlined className="text-blue-500 ml-2" />}
+                        valueStyle={{ color: isDarkMode ? '#fff' : '#0f172a', fontFamily: 'monospace', fontWeight: 'bold' }}
                       />
-                      <div className="text-[11px] text-slate-500 mt-1">از فایل misc/airports.json</div>
+                      <div className={`text-[11px] mt-1 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>از فایل misc/airports.json</div>
                     </Card>
                   </Col>
                   <Col xs={24} sm={12} lg={6}>
-                    <Card className="bg-slate-950/70 border-slate-800 rounded-xl">
+                    <Card
+                      className={`rounded-xl border transition-colors ${
+                        isDarkMode ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200'
+                      }`}
+                    >
                       <Statistic
-                        title={<span className="text-slate-400 text-xs">ایرلاین‌های مرجع (airlines)</span>}
+                        title={<span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>ایرلاین‌های مرجع (airlines)</span>}
                         value={dbStatus?.airlines_raw_count || 100}
-                        prefix={<RocketOutlined className="text-amber-400 ml-2" />}
-                        valueStyle={{ color: '#fff', fontFamily: 'monospace', fontWeight: 'bold' }}
+                        prefix={<RocketOutlined className="text-amber-500 ml-2" />}
+                        valueStyle={{ color: isDarkMode ? '#fff' : '#0f172a', fontFamily: 'monospace', fontWeight: 'bold' }}
                       />
-                      <div className="text-[11px] text-slate-500 mt-1">از فایل misc/airlines_complete.json</div>
+                      <div className={`text-[11px] mt-1 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>از فایل misc/airlines_complete.json</div>
                     </Card>
                   </Col>
                   <Col xs={24} sm={12} lg={6}>
-                    <Card className="bg-slate-950/70 border-slate-800 rounded-xl">
+                    <Card
+                      className={`rounded-xl border transition-colors ${
+                        isDarkMode ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200'
+                      }`}
+                    >
                       <Statistic
-                        title={<span className="text-slate-400 text-xs">کراولرهای متصل</span>}
+                        title={<span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>کراولرهای متصل</span>}
                         value={3}
-                        prefix={<ApartmentOutlined className="text-emerald-400 ml-2" />}
-                        valueStyle={{ color: '#fff', fontFamily: 'monospace', fontWeight: 'bold' }}
+                        prefix={<ApartmentOutlined className="text-emerald-500 ml-2" />}
+                        valueStyle={{ color: isDarkMode ? '#fff' : '#0f172a', fontFamily: 'monospace', fontWeight: 'bold' }}
                       />
-                      <div className="text-[11px] text-slate-500 mt-1">Alibaba, FlyToday, SafarMarket</div>
+                      <div className={`text-[11px] mt-1 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>Alibaba, FlyToday, SafarMarket</div>
                     </Card>
                   </Col>
                   <Col xs={24} sm={12} lg={6}>
-                    <Card className="bg-slate-950/70 border-slate-800 rounded-xl">
+                    <Card
+                      className={`rounded-xl border transition-colors ${
+                        isDarkMode ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200'
+                      }`}
+                    >
                       <Statistic
-                        title={<span className="text-slate-400 text-xs">موتور پایگاه داده</span>}
+                        title={<span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>موتور پایگاه داده</span>}
                         value="buyo.sqlite"
-                        prefix={<DatabaseOutlined className="text-indigo-400 ml-2" />}
-                        valueStyle={{ color: '#fff', fontFamily: 'monospace', fontSize: '18px' }}
+                        prefix={<DatabaseOutlined className="text-indigo-500 ml-2" />}
+                        valueStyle={{ color: isDarkMode ? '#fff' : '#0f172a', fontFamily: 'monospace', fontSize: '18px' }}
                       />
-                      <div className="text-[11px] text-emerald-400 mt-1 flex items-center gap-1">
+                      <div className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1">
                         <CheckCircleOutlined /> آماده و متصل
                       </div>
                     </Card>
@@ -1187,8 +1446,8 @@ export default function App() {
                 {/* Live Console Output */}
                 {bootstrapLogs && (
                   <div className="mt-5 space-y-3">
-                    <div className="flex items-center gap-2 text-xs font-bold text-slate-300">
-                      <CodeOutlined className="text-emerald-400" />
+                    <div className={`flex items-center gap-2 text-xs font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                      <CodeOutlined className="text-emerald-500" />
                       <span>خروجی ترمینال اجرای اسکریپت‌های پایتون:</span>
                     </div>
 
@@ -1198,8 +1457,14 @@ export default function App() {
 
                     {bootstrapLogs.bootstrap && (
                       <div>
-                        <div className="text-[11px] text-slate-400 mb-1">۱. خروجی ایجاد اسکیمای جداول:</div>
-                        <pre className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs font-mono text-emerald-400 whitespace-pre-wrap">
+                        <div className={`text-[11px] mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>۱. خروجی ایجاد اسکیمای جداول:</div>
+                        <pre
+                          className={`p-3 border rounded-xl text-xs font-mono whitespace-pre-wrap ${
+                            isDarkMode
+                              ? 'bg-slate-950 border-slate-800 text-emerald-400'
+                              : 'bg-slate-100 border-slate-300 text-emerald-700'
+                          }`}
+                        >
                           {bootstrapLogs.bootstrap}
                         </pre>
                       </div>
@@ -1207,8 +1472,14 @@ export default function App() {
 
                     {bootstrapLogs.seed && (
                       <div>
-                        <div className="text-[11px] text-slate-400 mb-1">۲. خروجی سیدینگ داده‌های مرجع:</div>
-                        <pre className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs font-mono text-sky-300 whitespace-pre-wrap">
+                        <div className={`text-[11px] mb-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>۲. خروجی سیدینگ داده‌های مرجع:</div>
+                        <pre
+                          className={`p-3 border rounded-xl text-xs font-mono whitespace-pre-wrap ${
+                            isDarkMode
+                              ? 'bg-slate-950 border-slate-800 text-sky-300'
+                              : 'bg-slate-100 border-slate-300 text-sky-700'
+                          }`}
+                        >
                           {bootstrapLogs.seed}
                         </pre>
                       </div>
@@ -1227,74 +1498,86 @@ export default function App() {
             onCancel={() => setSelectedBooking(null)}
             footer={null}
             title={
-              <div className="flex items-center gap-2 text-base font-bold text-white">
-                <CheckCircleOutlined className="text-emerald-400 text-lg" />
+              <div className="flex items-center gap-2 text-base font-bold">
+                <CheckCircleOutlined className="text-emerald-500 text-lg" />
                 <span>تایید انتخاب پرواز و اتصال به تامین‌کننده</span>
               </div>
             }
             className="rounded-2xl"
           >
             <div className="space-y-4 pt-2 text-xs">
-              <div className="flex items-center justify-between p-3.5 bg-slate-950 rounded-xl border border-slate-800">
+              <div
+                className={`flex items-center justify-between p-3.5 rounded-xl border transition-colors ${
+                  isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
+                }`}
+              >
                 <div>
-                  <div className="font-extrabold text-white text-base">
+                  <div className={`font-extrabold text-base ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                     {selectedBooking.flight.airline.nameFa || selectedBooking.flight.airline.name}
                   </div>
-                  <div className="text-slate-400 font-mono">
+                  <div className={`font-mono ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                     شماره پرواز: {selectedBooking.flight.flightNumber}
                   </div>
                 </div>
                 <ProviderLogo provider={selectedBooking.providerOffer.provider} size="md" showLabel={true} />
               </div>
 
-              <div className="p-4 bg-slate-800/40 rounded-xl space-y-2">
+              <div
+                className={`p-4 rounded-xl space-y-2 transition-colors ${
+                  isDarkMode ? 'bg-slate-800/40' : 'bg-slate-100/70 border border-slate-200'
+                }`}
+              >
                 <div className="flex justify-between">
-                  <span className="text-slate-400">قیمت نهایی:</span>
-                  <span className="text-white font-extrabold text-base">
+                  <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>قیمت نهایی:</span>
+                  <span className={`font-extrabold text-base ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                     {formatToman(selectedBooking.providerOffer.totalPrice)}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">معادل ریال:</span>
-                  <span className="text-slate-300 font-mono">
+                  <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>معادل ریال:</span>
+                  <span className={`font-mono ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
                     {formatRial(selectedBooking.providerOffer.totalPrice)}
                   </span>
                 </div>
-                <Divider className="my-2 border-slate-800" />
+                <Divider className={`my-2 ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`} />
                 <div className="flex justify-between">
-                  <span className="text-slate-400">مسیر:</span>
-                  <span className="text-slate-300 font-bold">
+                  <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>مسیر:</span>
+                  <span className={`font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
                     {selectedBooking.flight.origin} ← {selectedBooking.flight.destination}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">زمان حرکت:</span>
-                  <span className="text-slate-300 font-mono">
+                  <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>زمان حرکت:</span>
+                  <span className={`font-mono ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
                     {new Date(selectedBooking.flight.departureAt).toLocaleString('fa-IR')}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">بار مجاز:</span>
-                  <span className="text-slate-300">{selectedBooking.providerOffer.baggage}</span>
+                  <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>بار مجاز:</span>
+                  <span className={isDarkMode ? 'text-slate-300' : 'text-slate-700'}>{selectedBooking.providerOffer.baggage}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">کلید یکپارچه فیزیکی:</span>
-                  <span className="font-mono text-emerald-400 text-[10px]">
+                  <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>کلید یکپارچه فیزیکی:</span>
+                  <span className="font-mono text-emerald-600 dark:text-emerald-400 text-[10px]">
                     {selectedBooking.flight.id}
                   </span>
                 </div>
               </div>
 
               {bookingSuccessId ? (
-                <div className="p-4 bg-emerald-950/40 border border-emerald-500/40 rounded-xl space-y-2 text-center">
-                  <CheckCircleOutlined className="text-3xl text-emerald-400" />
-                  <div className="text-sm font-extrabold text-white">
+                <div className="p-4 bg-emerald-950/40 dark:bg-emerald-950/40 border border-emerald-500/40 rounded-xl space-y-2 text-center">
+                  <CheckCircleOutlined className="text-3xl text-emerald-500" />
+                  <div className={`text-sm font-extrabold ${isDarkMode ? 'text-white' : 'text-emerald-950'}`}>
                     رزرو با موفقیت در پایگاه داده Firebase ثبت شد!
                   </div>
-                  <div className="text-xs text-slate-300">
+                  <div className={`text-xs ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
                     شناسه پیگیری سفارش (Firestore Document ID):
                   </div>
-                  <div className="p-2 bg-slate-950 rounded-lg border border-slate-800 font-mono text-emerald-400 select-all text-xs">
+                  <div
+                    className={`p-2 rounded-lg border font-mono text-emerald-600 dark:text-emerald-400 select-all text-xs ${
+                      isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-300'
+                    }`}
+                  >
                     {bookingSuccessId}
                   </div>
                   <Button

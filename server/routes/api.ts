@@ -114,6 +114,7 @@ export function createApiRouter(): Router {
       raw_offers_count: session.rawOffersCount,
       sort: activeSort,
       allowed_sorts: ['Cheapest', 'Fastest', 'Earliest'],
+      route_notice: session.routeNotice,
       grouped_cards: sortedCards,
     });
   });

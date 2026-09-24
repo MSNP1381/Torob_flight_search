@@ -1,21 +1,20 @@
 import React, { useMemo } from 'react';
+import { Card, Tag, Button, Tooltip as AntTooltip } from 'antd';
 import {
-  ResponsiveContainer,
   BarChart,
   Bar,
   XAxis,
   YAxis,
   Tooltip,
+  ResponsiveContainer,
   Cell,
   CartesianGrid,
 } from 'recharts';
-import { Card, Tag, Button } from 'antd';
 import {
-  ThunderboltOutlined,
   ClockCircleOutlined,
+  ThunderboltOutlined,
   CloseCircleOutlined,
   CheckCircleOutlined,
-  FilterOutlined,
 } from '@ant-design/icons';
 
 export interface HistogramBin {
@@ -30,13 +29,18 @@ export interface HistogramBin {
   isFastest: boolean;
 }
 
-interface DurationHistogramProps {
+export interface DurationHistogramProps {
   flights: Array<{
     id: string;
     durationMinutes: number;
     duration: string;
-    airline: { nameFa: string; name: string };
-    bestPrice: { totalPrice: number };
+    bestPrice: {
+      totalPrice: number;
+    };
+    airline: {
+      name: string;
+      nameFa?: string;
+    };
   }>;
   selectedBinKey: string | null;
   onSelectBin: (binKey: string | null, minMinutes?: number, maxMinutes?: number) => void;
@@ -88,64 +92,68 @@ export const DurationHistogram: React.FC<DurationHistogramProps> = ({
     const step = Math.max(5, Math.ceil(range / binCount));
 
     const generatedBins: HistogramBin[] = [];
+    let currentMin = min;
 
     for (let i = 0; i < binCount; i++) {
-      const bMin = min + i * step;
-      const bMax = i === binCount - 1 ? max : min + (i + 1) * step - 1;
-
-      const matchingFlights = flights.filter(
-        (f) => f.durationMinutes >= bMin && f.durationMinutes <= bMax
+      const currentMax = i === binCount - 1 ? max : currentMin + step - 1;
+      const binFlights = flights.filter(
+        (f) => (f.durationMinutes || 60) >= currentMin && (f.durationMinutes || 60) <= currentMax
       );
 
-      const minH = Math.floor(bMin / 60);
-      const minM = bMin % 60;
-      const maxH = Math.floor(bMax / 60);
-      const maxM = bMax % 60;
+      const minH = Math.floor(currentMin / 60);
+      const minM = currentMin % 60;
+      const maxH = Math.floor(currentMax / 60);
+      const maxM = currentMax % 60;
 
-      const formatMin = `${minH > 0 ? `${minH}:` : ''}${String(minM).padStart(2, '0')}`;
-      const formatMax = `${maxH > 0 ? `${maxH}:` : ''}${String(maxM).padStart(2, '0')}`;
+      const formatPart = (h: number, m: number) => {
+        if (h === 0) return `${m}د`;
+        if (m === 0) return `${h}س`;
+        return `${h}:${m < 10 ? '0' : ''}${m}`;
+      };
 
-      const shortLabel = `${formatMin}-${formatMax}`;
-      const label = `${formatMin} تا ${formatMax} ساعت`;
+      const shortLabel = `${formatPart(minH, minM)}-${formatPart(maxH, maxM)}`;
+      const label = `${formatPart(minH, minM)} تا ${formatPart(maxH, maxM)}`;
 
-      const minPrice =
-        matchingFlights.length > 0
-          ? Math.min(...matchingFlights.map((f) => f.bestPrice.totalPrice))
-          : 0;
+      const minPrice = binFlights.length > 0
+        ? Math.min(...binFlights.map((f) => f.bestPrice.totalPrice))
+        : 0;
 
       const airlines = Array.from(
-        new Set(matchingFlights.map((f) => f.airline.nameFa || f.airline.name))
+        new Set(binFlights.map((f) => f.airline.nameFa || f.airline.name))
       );
 
       generatedBins.push({
-        key: `bin-${bMin}-${bMax}`,
-        minMinutes: bMin,
-        maxMinutes: bMax,
+        key: `bin-${currentMin}-${currentMax}`,
+        minMinutes: currentMin,
+        maxMinutes: currentMax,
         label,
         shortLabel,
-        count: matchingFlights.length,
+        count: binFlights.length,
         minPrice,
         airlines,
-        isFastest: false,
+        isFastest: i === 0,
       });
+
+      currentMin = currentMax + 1;
+      if (currentMin > max) break;
     }
 
-    // Mark the fastest bin that actually has flights
-    const firstPopulated = generatedBins.find((b) => b.count > 0);
-    if (firstPopulated) {
-      firstPopulated.isFastest = true;
-    }
+    // Identify fastest bin with at least 1 flight
+    const nonZeroFastest = generatedBins.find((b) => b.count > 0 && b.isFastest) ||
+      generatedBins.find((b) => b.count > 0);
 
     return {
       bins: generatedBins,
-      fastestBin: firstPopulated || null,
+      fastestBin: nonZeroFastest || null,
       minDuration: min,
       maxDuration: max,
       avgDuration: avg,
     };
   }, [flights]);
 
-  if (!flights || flights.length === 0) return null;
+  if (!flights || flights.length === 0) {
+    return null;
+  }
 
   const formatToman = (amount: number) => {
     return `${Math.round(amount / 10).toLocaleString('fa-IR')} تومان`;
@@ -161,25 +169,25 @@ export const DurationHistogram: React.FC<DurationHistogramProps> = ({
 
   return (
     <Card
-      className="bg-slate-900 border-slate-800 rounded-2xl mb-5 shadow-lg overflow-hidden"
+      className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-2xl mb-5 shadow-md overflow-hidden transition-colors"
       styles={{ body: { padding: '16px' } }}
     >
       {/* Responsive Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-base">
+          <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400 text-base flex-shrink-0">
             <ThunderboltOutlined />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-extrabold text-sm text-white">
+              <span className="font-extrabold text-sm text-slate-900 dark:text-white">
                 توزیع مدت زمان پروازها
               </span>
-              <span className="text-[11px] text-slate-400 font-mono">
+              <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
                 (مدت سفر)
               </span>
             </div>
-            <p className="text-[11px] text-slate-400 m-0">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 m-0">
               کلیک روی هر ستون برای فیلتر پروازهای آن بازه
             </p>
           </div>
@@ -188,20 +196,20 @@ export const DurationHistogram: React.FC<DurationHistogramProps> = ({
         {/* Stats summary & Quick filter badge */}
         <div className="flex items-center gap-2 flex-wrap">
           {fastestBin && (
-            <div className="bg-emerald-950/40 border border-emerald-500/30 px-2.5 py-1 rounded-lg flex items-center gap-1.5 text-[11px]">
-              <span className="text-emerald-400 font-bold flex items-center gap-1">
+            <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-500/30 px-2.5 py-1 rounded-lg flex items-center gap-1.5 text-[11px]">
+              <span className="text-emerald-700 dark:text-emerald-400 font-bold flex items-center gap-1">
                 <CheckCircleOutlined />
                 سریع‌ترین:
               </span>
-              <span className="text-white font-mono font-bold">{fastestBin.shortLabel}</span>
-              <span className="text-emerald-300 font-mono">
+              <span className="text-slate-900 dark:text-white font-mono font-bold">{fastestBin.shortLabel}</span>
+              <span className="text-emerald-600 dark:text-emerald-300 font-mono">
                 ({formatToman(fastestBin.minPrice)})
               </span>
             </div>
           )}
 
-          <div className="bg-slate-800/50 border border-slate-700/40 px-2.5 py-1 rounded-lg text-[11px] flex items-center gap-1 font-mono text-slate-300">
-            <ClockCircleOutlined className="text-blue-400" />
+          <div className="bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/40 px-2.5 py-1 rounded-lg text-[11px] flex items-center gap-1 font-mono text-slate-700 dark:text-slate-300">
+            <ClockCircleOutlined className="text-blue-500 dark:text-blue-400" />
             <span>میانگین: {formatHoursMinutes(avgDuration)}</span>
           </div>
 
@@ -239,33 +247,33 @@ export const DurationHistogram: React.FC<DurationHistogramProps> = ({
               }
             }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#94a3b833" vertical={false} />
             <XAxis
               dataKey="shortLabel"
               stroke="#64748b"
               fontSize={10}
               tickLine={false}
-              axisLine={{ stroke: '#334155' }}
+              axisLine={{ stroke: '#94a3b844' }}
             />
             <YAxis
               stroke="#64748b"
               fontSize={10}
               allowDecimals={false}
               tickLine={false}
-              axisLine={{ stroke: '#334155' }}
+              axisLine={{ stroke: '#94a3b844' }}
             />
             <Tooltip
-              cursor={{ fill: 'rgba(255, 255, 255, 0.04)' }}
+              cursor={{ fill: 'rgba(59, 130, 246, 0.08)' }}
               content={({ active, payload }) => {
                 if (active && payload && payload.length) {
                   const data = payload[0].payload as HistogramBin;
                   return (
                     <div
-                      className="p-2.5 bg-slate-950 border border-slate-700 rounded-xl shadow-xl text-right font-sans text-xs text-slate-200 min-w-48"
+                      className="p-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl text-right font-sans text-xs text-slate-800 dark:text-slate-200 min-w-48"
                       dir="rtl"
                     >
-                      <div className="flex items-center justify-between pb-1 border-b border-slate-800 mb-1.5">
-                        <span className="font-extrabold text-white text-xs">
+                      <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800 mb-1.5">
+                        <span className="font-extrabold text-slate-900 dark:text-white text-xs">
                           بازه {data.label}
                         </span>
                         {data.isFastest && (
@@ -276,13 +284,13 @@ export const DurationHistogram: React.FC<DurationHistogramProps> = ({
                       </div>
                       <div className="space-y-1 text-[11px]">
                         <div className="flex justify-between">
-                          <span className="text-slate-400">تعداد پرواز:</span>
-                          <span className="font-bold text-white font-mono">{data.count}</span>
+                          <span className="text-slate-500 dark:text-slate-400">تعداد پرواز:</span>
+                          <span className="font-bold text-slate-900 dark:text-white font-mono">{data.count}</span>
                         </div>
                         {data.count > 0 && (
                           <div className="flex justify-between">
-                            <span className="text-slate-400">شروع قیمت:</span>
-                            <span className="font-extrabold text-amber-400 font-mono">
+                            <span className="text-slate-500 dark:text-slate-400">شروع قیمت:</span>
+                            <span className="font-extrabold text-amber-600 dark:text-amber-400 font-mono">
                               {formatToman(data.minPrice)}
                             </span>
                           </div>
@@ -300,7 +308,7 @@ export const DurationHistogram: React.FC<DurationHistogramProps> = ({
                 let fill = '#3b82f6';
                 if (bin.isFastest) fill = '#10b981';
                 if (isSelected) fill = '#f59e0b';
-                if (bin.count === 0) fill = '#1e293b';
+                if (bin.count === 0) fill = '#94a3b833';
                 return (
                   <Cell
                     key={bin.key}
@@ -317,10 +325,10 @@ export const DurationHistogram: React.FC<DurationHistogramProps> = ({
       </div>
 
       {/* Legend & quick indicators */}
-      <div className="flex items-center justify-center gap-4 mt-2 text-[11px] text-slate-400 border-t border-slate-800/60 pt-2 flex-wrap">
+      <div className="flex items-center justify-center gap-4 mt-2 text-[11px] text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800/60 pt-2 flex-wrap">
         <span className="flex items-center gap-1">
           <span className="w-2.5 h-2.5 rounded bg-emerald-500 inline-block"></span>
-          <span className="text-emerald-300">سریع‌ترین بازه</span>
+          <span className="text-emerald-700 dark:text-emerald-300 font-medium">سریع‌ترین بازه</span>
         </span>
         <span className="flex items-center gap-1">
           <span className="w-2.5 h-2.5 rounded bg-blue-500 inline-block"></span>
