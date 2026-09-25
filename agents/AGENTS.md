@@ -746,6 +746,5 @@ from src.modules.orders.infrastructure.repositories import OrderRepository  # DO
 | ADR-7 | Snapshot data in orders | `order_items` self-contained even if offers expire |
 | ADR-8 | Defer Celery/RabbitMQ for day one | In-process orchestration; queue infra in phase 2 |
 | ADR-9 | `from_state = NULL` for initial transitions | No sentinel strings; semantically clear |
-| ADR-10 | Multi-Criteria Matrix Flight Ranking ($S = X \cdot W$) | Client/proxy matrix scoring with 4-tier Blue-Green-Yellow-Red palette |
 
-Full details in `docs/ARCHITECTURE_NEW_v2.md` § 9 and root `AGENTS.md`.
+Full details in `docs/ARCHITECTURE_NEW_v2.md` § 9.
