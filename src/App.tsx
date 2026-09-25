@@ -60,6 +60,7 @@ import { ProviderLogo, ProviderType } from './components/ProviderLogo';
 import { GroupingKeyModal } from './components/GroupingKeyModal';
 import { DurationHistogram } from './components/DurationHistogram';
 import { FlightCardItem } from './components/FlightCardItem';
+import { ProviderSessionManagerModal } from './components/ProviderSessionManagerModal';
 import { logSearchToFirebase, saveBookingToFirebase } from './firebase/flightService';
 import { testFirebaseConnection } from './firebase/config';
 
@@ -122,10 +123,6 @@ interface GroupedFlightCard {
   duration: string;
   durationMinutes: number;
   stops: number;
-  stopInfo?: string;
-  transitCity?: string;
-  transitInfo?: string;
-  layoverDuration?: string;
   cabin: string;
   isDomestic: boolean;
   providers: ProviderOffer[];
@@ -196,7 +193,6 @@ export default function App() {
   const [isSearching, setIsSearching] = useState(false);
   const [groupedFlights, setGroupedFlights] = useState<GroupedFlightCard[]>([]);
   const [rawOffersCount, setRawOffersCount] = useState(0);
-  const [routeNotice, setRouteNotice] = useState<string | null>(null);
 
   // Grouping Key Inspector modal
   const [inspectingFlight, setInspectingFlight] = useState<GroupedFlightCard | null>(null);
@@ -234,6 +230,44 @@ export default function App() {
   const [firebaseConnected, setFirebaseConnected] = useState<boolean>(true);
   const [bookingSuccessId, setBookingSuccessId] = useState<string | null>(null);
   const [isBookingSaving, setIsBookingSaving] = useState<boolean>(false);
+
+  // Crawler Provider Sessions modal state (secret developer/admin mode)
+  const [isSessionModalOpen, setIsSessionModalOpen] = useState<boolean>(false);
+  const [isAdminMode, setIsAdminMode] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.has('admin') || urlParams.has('dev') || urlParams.has('creds') || localStorage.getItem('buyo_dev_mode') === 'true';
+  });
+  const [secretClickCount, setSecretClickCount] = useState<number>(0);
+
+  // Hidden admin mode key listener (Ctrl+Shift+C or Alt+Shift+C)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey || e.altKey) && e.shiftKey && (e.key === 'C' || e.key === 'c' || e.key === 'K' || e.key === 'k')) {
+        e.preventDefault();
+        setIsAdminMode(true);
+        setIsSessionModalOpen((prev) => !prev);
+        try {
+          localStorage.setItem('buyo_dev_mode', 'true');
+        } catch {}
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const handleSecretTrigger = () => {
+    const next = secretClickCount + 1;
+    setSecretClickCount(next);
+    if (next >= 3) {
+      setIsAdminMode(true);
+      setIsSessionModalOpen(true);
+      setSecretClickCount(0);
+      try {
+        localStorage.setItem('buyo_dev_mode', 'true');
+      } catch {}
+    }
+  };
 
   // Initial load
   useEffect(() => {
@@ -303,7 +337,6 @@ export default function App() {
         const offersData = await offersRes.json();
         setGroupedFlights(offersData.grouped_cards || []);
         setRawOffersCount(offersData.raw_offers_count || 0);
-        setRouteNotice(offersData.route_notice || null);
 
         // Persist session to Firebase Firestore
         logSearchToFirebase({
@@ -517,7 +550,9 @@ export default function App() {
                       موتور تجمیع پرواز BuyO
                     </span>
                     <span
-                      className={`hidden sm:inline-block px-2 py-0.5 rounded text-[10px] font-mono border ${
+                      onClick={handleSecretTrigger}
+                      title="حالت مدیریت داخلی (۳ بار کلیک)"
+                      className={`hidden sm:inline-block px-2 py-0.5 rounded text-[10px] font-mono border cursor-pointer select-none transition-transform active:scale-95 ${
                         isDarkMode
                           ? 'bg-blue-900/50 text-blue-300 border-blue-700/50'
                           : 'bg-blue-50 text-blue-700 border-blue-200'
@@ -630,6 +665,21 @@ export default function App() {
                 <DatabaseOutlined />
                 <span>راه‌اندازی دیتابیس</span>
               </button>
+              {isAdminMode && (
+                <button
+                  type="button"
+                  onClick={() => setIsSessionModalOpen(true)}
+                  className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 flex-shrink-0 cursor-pointer border ${
+                    isDarkMode
+                      ? 'bg-amber-950/40 text-amber-300 border-amber-600/50 hover:bg-amber-900/60'
+                      : 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100'
+                  }`}
+                  title="پنل مدیریت داخلی: کوکی‌ها، اعتبارنامه‌ها و پروکسی ایران (Ctrl+Shift+C)"
+                >
+                  <SafetyCertificateOutlined />
+                  <span className="font-mono text-[11px]">Creds / Iran Proxy</span>
+                </button>
+              )}
             </div>
           </div>
         </Header>
@@ -1028,21 +1078,6 @@ export default function App() {
                 </div>
               ) : (
                 <div className="space-y-3.5">
-                  {routeNotice && (
-                    <div
-                      className={`p-3.5 sm:p-4 rounded-xl border flex items-start gap-3 transition-colors ${
-                        isDarkMode
-                          ? 'bg-amber-950/30 border-amber-700/50 text-amber-200'
-                          : 'bg-amber-50/90 border-amber-200 text-amber-900 shadow-sm'
-                      }`}
-                    >
-                      <InfoCircleOutlined className="text-amber-500 mt-0.5 text-base flex-shrink-0" />
-                      <div className="text-xs leading-relaxed">
-                        <span className="font-extrabold block mb-0.5">مسیر بین‌المللی با پروازهای ترانزیتی و توقف (Connecting Flights):</span>
-                        <span>{routeNotice}</span>
-                      </div>
-                    </div>
-                  )}
                   {sortedFlights.map((card) => {
                     const isCheapest = card.bestPrice.totalPrice === minPrice;
                     const isFastest = card.durationMinutes === minDuration;
@@ -1635,6 +1670,13 @@ export default function App() {
             </div>
           </Modal>
         )}
+
+        {/* Crawler Provider Session Manager Modal */}
+        <ProviderSessionManagerModal
+          isOpen={isSessionModalOpen}
+          onClose={() => setIsSessionModalOpen(false)}
+          isDarkMode={isDarkMode}
+        />
 
         {/* Footer */}
         <Footer className="border-t border-slate-900 bg-slate-950 py-4 text-center text-xs text-slate-500">

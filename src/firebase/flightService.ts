@@ -73,3 +73,27 @@ export async function getRecentSearchesFromFirebase(): Promise<FirebaseSearchRec
     return [];
   }
 }
+
+export interface FirebaseProviderSessionRecord {
+  id?: string;
+  site_name: string;
+  status: string;
+  session_id?: string;
+  proxy_binding?: string;
+  cookies?: string;
+  headers?: any;
+  expires_at?: string;
+  created_at: any;
+  last_used_at?: any;
+}
+
+export async function getProviderSessionsFromFirebase(): Promise<FirebaseProviderSessionRecord[]> {
+  try {
+    const colRef = collection(db, 'provider_sessions');
+    const snap = await getDocs(colRef);
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as FirebaseProviderSessionRecord));
+  } catch (err) {
+    console.warn('Failed to get provider sessions from Firebase:', err);
+    return [];
+  }
+}

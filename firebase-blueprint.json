@@ -35,6 +35,27 @@
         "createdAt": { "type": "string", "description": "Creation timestamp" }
       },
       "required": ["flightId", "provider", "totalPrice", "createdAt"]
+    },
+    "ProviderSession": {
+      "title": "ProviderSession",
+      "description": "Crawler authentication cookies, tokens, and browser session artifacts for providers",
+      "type": "object",
+      "properties": {
+        "site_name": { "type": "string", "description": "Provider site identifier (alibaba, flytoday, safarmarket)" },
+        "session_id": { "type": "string", "description": "Unique session token or tracking identifier" },
+        "flow_id": { "type": "string", "description": "Flow or correlation identifier" },
+        "auth_state": { "type": "string", "description": "Authentication state: anonymous, authenticated, refreshed" },
+        "status": { "type": "string", "description": "Session status: active, expired, blocked" },
+        "proxy_binding": { "type": "string", "description": "Assigned proxy IP or residential egress binding" },
+        "cookies": { "type": "string", "description": "Cookies payload (encrypted or serialized string)" },
+        "headers": { "type": "string", "description": "Custom HTTP headers required by provider API" },
+        "session_storage": { "type": "string", "description": "Session storage dump or token dict" },
+        "local_storage": { "type": "string", "description": "Local storage items from crawler automation" },
+        "expires_at": { "type": "string", "description": "Session expiration datetime in ISO format" },
+        "last_used_at": { "type": "string", "description": "Last successful usage timestamp in ISO format" },
+        "created_at": { "type": "string", "description": "Creation timestamp in ISO format" }
+      },
+      "required": ["site_name", "status", "created_at"]
     }
   },
   "firestore": {
@@ -45,6 +66,10 @@
     "/bookings/{bookingId}": {
       "schema": "BookingRecord",
       "description": "Collection of user-selected flight bookings"
+    },
+    "/provider_sessions/{sessionId}": {
+      "schema": "ProviderSession",
+      "description": "Collection of crawler provider sessions, cookies and authentication artifacts"
     }
   }
 }

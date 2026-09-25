@@ -11,6 +11,9 @@ import {
   FlightSortOption,
 } from '../services/flightSearch.js';
 import { getAirports, getAirlines } from '../data/airports.js';
+import { ProviderSessionService } from '../services/providerSessions.js';
+import { LiveProviderIntegration } from '../services/liveIntegration.js';
+import { IranProxyService } from '../services/iranProxyService.js';
 
 export function createApiRouter(): Router {
   const router = Router();
@@ -114,7 +117,6 @@ export function createApiRouter(): Router {
       raw_offers_count: session.rawOffersCount,
       sort: activeSort,
       allowed_sorts: ['Cheapest', 'Fastest', 'Earliest'],
-      route_notice: session.routeNotice,
       grouped_cards: sortedCards,
     });
   });
@@ -176,6 +178,196 @@ export function createApiRouter(): Router {
       airports_count: airportsCount,
       airlines_count: airlinesCount,
       status: 'ready',
+    });
+  });
+
+  // ==========================================
+  // Crawler Provider Sessions & Integrations
+  // ==========================================
+
+  // Get status of all provider sessions & credentials
+  router.get('/integrations/sessions', (req: Request, res: Response) => {
+    const sessions = ProviderSessionService.getAllSessions();
+    res.json({
+      success: true,
+      sessions,
+      supported_providers: ['alibaba', 'flytoday', 'safarmarket'],
+      sync_endpoint: '/api/v1/integrations/sync-session',
+      message: 'Active sessions enable real live crawler querying from provider APIs',
+    });
+  });
+
+  // Sync / ingest provider session credentials from generate_sessions.py
+  router.post('/integrations/sync-session', async (req: Request, res: Response) => {
+    try {
+      const {
+        site_name,
+        session_id,
+        flow_id,
+        cookies,
+        headers,
+        session_storage,
+        local_storage,
+        proxy_binding,
+        expires_at,
+      } = req.body || {};
+
+      if (!site_name) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required field: site_name (e.g. alibaba, flytoday, safarmarket)',
+        });
+      }
+
+      const saved = await ProviderSessionService.saveSession({
+        site_name,
+        session_id,
+        flow_id,
+        status: 'active',
+        cookies: typeof cookies === 'object' ? JSON.stringify(cookies) : cookies,
+        headers,
+        session_storage,
+        local_storage,
+        proxy_binding,
+        expires_at,
+        created_at: new Date().toISOString(),
+      });
+
+      return res.json({
+        success: true,
+        message: `Successfully synchronized session credentials for ${site_name}`,
+        session: {
+          site_name: saved.site_name,
+          status: saved.status,
+          has_cookies: Boolean(saved.cookies),
+          proxy_binding: saved.proxy_binding || 'direct',
+          created_at: saved.created_at,
+          expires_at: saved.expires_at,
+        },
+      });
+    } catch (err: any) {
+      return res.status(500).json({
+        success: false,
+        error: err.message || 'Failed to sync provider session',
+      });
+    }
+  });
+
+  // Test / run live search for a specific provider
+  router.post('/integrations/test-live-search', async (req: Request, res: Response) => {
+    const { provider, origin, destination, departureDate, cabin } = req.body || {};
+    if (!provider || !origin || !destination) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required parameters: provider, origin, destination',
+      });
+    }
+
+    const result = await LiveProviderIntegration.searchProvider(
+      provider,
+      origin,
+      destination,
+      departureDate || '2026-06-02',
+      cabin || 'economy'
+    );
+
+    return res.json({
+      success: true,
+      result,
+    });
+  });
+
+  // Automatically refresh cookies and credentials for providers via Iran proxy
+  router.post('/integrations/auto-refresh-session', async (req: Request, res: Response) => {
+    try {
+      const { provider } = req.body || {};
+      if (provider && ['alibaba', 'flytoday', 'safarmarket'].includes(provider)) {
+        const session = await LiveProviderIntegration.autoRefreshSession(provider);
+        return res.json({
+          success: true,
+          message: `اعتبارنامه‌ها و کوکی‌های ${provider} با موفقیت از طریق پروکسی ایران بروزرسانی شدند`,
+          session,
+        });
+      } else {
+        const sessions = await LiveProviderIntegration.autoRefreshAllProviders();
+        return res.json({
+          success: true,
+          message: 'اعتبارنامه‌ها و کوکی‌های کلیه ارائه‌دهندگان (علی‌بابا، فلای‌تودی، سفرمارکت) بروزرسانی شدند',
+          sessions,
+        });
+      }
+    } catch (err: any) {
+      return res.status(500).json({
+        success: false,
+        error: err.message || 'خطا در بروزرسانی خودکار نشست‌ها',
+      });
+    }
+  });
+
+  // Get list of all Iran proxies & active proxy status
+  router.get('/integrations/proxies', (req: Request, res: Response) => {
+    const proxies = IranProxyService.getAllProxies();
+    const activeProxy = IranProxyService.getActiveProxy();
+    res.json({
+      success: true,
+      total: proxies.length,
+      active_proxy: activeProxy,
+      proxies,
+    });
+  });
+
+  // Search and discover fresh Iranian proxies from public repos
+  router.post('/integrations/proxies/search', async (req: Request, res: Response) => {
+    try {
+      const result = await IranProxyService.searchAndFetchIranProxies();
+      const allProxies = IranProxyService.getAllProxies();
+      res.json({
+        success: true,
+        message: `${result.fetched} پروکسی جدید ایرانی یافت و به لیست اضافه شد`,
+        new_count: result.fetched,
+        total_count: result.total,
+        proxies: allProxies,
+      });
+    } catch (err: any) {
+      res.status(500).json({
+        success: false,
+        error: err.message || 'خطا در واکشی پروکسی‌های ایران',
+      });
+    }
+  });
+
+  // Add custom residential / private Iran proxy
+  router.post('/integrations/proxies/add', (req: Request, res: Response) => {
+    const { url, provider } = req.body || {};
+    if (!url) {
+      return res.status(400).json({
+        success: false,
+        error: 'آدرس پروکسی (url) الزامی است (مثال: http://ip:port یا socks5://ip:port)',
+      });
+    }
+
+    const added = IranProxyService.addCustomProxy({ url, provider, status: 'active' });
+    res.json({
+      success: true,
+      message: 'پروکسی اختصاصی با موفقیت ثبت و فعال شد',
+      proxy: added,
+    });
+  });
+
+  // Test connection of an Iran proxy
+  router.post('/integrations/proxies/test', async (req: Request, res: Response) => {
+    const { url } = req.body || {};
+    if (!url) {
+      return res.status(400).json({
+        success: false,
+        error: 'آدرس پروکسی الزامی است',
+      });
+    }
+
+    const result = await IranProxyService.testProxy(url);
+    res.json({
+      success: result.success,
+      result,
     });
   });
 

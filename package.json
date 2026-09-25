@@ -18,10 +18,12 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "firebase": "^12.19.0",
+    "https-proxy-agent": "^9.1.0",
     "lucide-react": "^1.16.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "recharts": "^3.10.1"
+    "recharts": "^3.10.1",
+    "undici": "^8.11.2"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",

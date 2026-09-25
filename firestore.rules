@@ -11,6 +11,11 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // Crawler Provider sessions & cookies
+    match /provider_sessions/{sessionId} {
+      allow read, write: if true;
+    }
+
     // Default catch-all
     match /{document=**} {
       allow read, write: if true;
