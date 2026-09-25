@@ -17,6 +17,7 @@ import { useDbBootstrap } from './hooks/useDbBootstrap';
 import { AppHeader } from './components/header/AppHeader';
 import { FlightSearchForm } from './components/search/FlightSearchForm';
 import { FlightMetricsBar } from './components/search/FlightMetricsBar';
+import { ProviderProgressTracker } from './components/search/ProviderProgressTracker';
 import { FlightSortToolbar } from './components/search/FlightSortToolbar';
 import { FlightResultsList } from './components/search/FlightResultsList';
 import { WeightMatrixDrawer } from './components/algo/WeightMatrixDrawer';
@@ -30,14 +31,14 @@ import { DurationHistogram } from './components/DurationHistogram';
 import { GroupingKeyModal } from './components/GroupingKeyModal';
 import { ProviderSessionManagerModal } from './components/ProviderSessionManagerModal';
 
-// Firebase
-import { testFirebaseConnection } from './firebase/config';
+// SQLite Services
+import { testSqliteConnection } from './services/flightService';
 
 const { Content } = Layout;
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>('grouped_search');
-  const [firebaseConnected, setFirebaseConnected] = useState<boolean>(true);
+  const [sqliteConnected, setSqliteConnected] = useState<boolean>(true);
 
   // Theme Management Hook
   const { isDarkMode, toggleTheme, themeConfig } = useThemeMode();
@@ -88,6 +89,8 @@ export default function App() {
     minDuration,
     earliestTime,
     performSearch,
+    providerProgress,
+    routeNotice,
   } = useFlightSearch(() => {
     fetchSqliteHistory();
   });
@@ -175,7 +178,7 @@ export default function App() {
 
   // Initial load
   useEffect(() => {
-    testFirebaseConnection().then((connected) => setFirebaseConnected(connected));
+    testSqliteConnection().then((connected) => setSqliteConnected(connected));
     performSearch();
     loadDirectory('تهران');
     calculateSandboxKey();
@@ -204,7 +207,7 @@ export default function App() {
           setActiveTab={setActiveTab}
           isDarkMode={isDarkMode}
           onToggleTheme={toggleTheme}
-          firebaseConnected={firebaseConnected}
+          sqliteConnected={sqliteConnected}
           historyCount={sqliteSearches.length}
           onOpenHistory={() => {
             fetchSqliteHistory();
@@ -241,6 +244,15 @@ export default function App() {
                 onSearch={() => performSearch()}
                 isSearching={isSearching}
                 onSelectPopularRoute={setPopularRoute}
+              />
+
+              {/* Real-time Multi-Provider Progress & Completion Status */}
+              <ProviderProgressTracker
+                isDarkMode={isDarkMode}
+                isSearching={isSearching}
+                providerProgress={providerProgress}
+                selectedProviders={selectedProviders}
+                routeNotice={routeNotice}
               />
 
               {/* Deduplication & Aggregation Metric Bar */}

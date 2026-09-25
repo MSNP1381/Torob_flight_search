@@ -23,6 +23,16 @@ export interface IranProxyItem {
 // These serve as immediate fallbacks if external proxy lists are temporarily unreachable.
 const DEFAULT_IRAN_PROXIES: IranProxyItem[] = [
   {
+    url: 'http://127.0.0.1:2080',
+    ip: '127.0.0.1',
+    port: 2080,
+    protocol: 'http',
+    provider: 'Local Dedicated Proxy (127.0.0.1:2080)',
+    country: 'IR',
+    status: 'active',
+    isCustom: true,
+  },
+  {
     url: 'http://5.160.201.213:8080',
     ip: '5.160.201.213',
     port: 8080,

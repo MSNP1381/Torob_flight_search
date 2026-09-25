@@ -69,6 +69,15 @@ export interface GroupedFlightCard {
 
 export type FlightSortOption = 'Cheapest' | 'Fastest' | 'Earliest' | 'Algorithmic';
 
+export interface ProviderProgressStatus {
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
+  offersCount: number;
+  durationMs?: number;
+  message?: string;
+  isFinished: boolean;
+  updatedAt?: string;
+}
+
 export interface AirportOption {
   code: string;
   name: string;

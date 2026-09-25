@@ -60,6 +60,21 @@ export interface DbFlightOffer {
   raw_payload?: string;
 }
 
+export interface DbBookingRecord {
+  id?: string;
+  flight_id: string;
+  grouping_key: string;
+  flight_number: string;
+  airline_name: string;
+  origin: string;
+  destination: string;
+  departure_at: string;
+  provider: string;
+  total_price: number;
+  status?: string;
+  created_at?: string;
+}
+
 class SqliteService {
   private db: DatabaseSync;
 
@@ -141,6 +156,25 @@ class SqliteService {
       );
       CREATE INDEX IF NOT EXISTS idx_flight_offers_session ON flight_offers(search_session_id);
       CREATE INDEX IF NOT EXISTS idx_flight_offers_hash ON flight_offers(flight_hash);
+    `);
+
+    // 4. Bookings (Flight confirmations & reservations)
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS bookings (
+        id TEXT PRIMARY KEY,
+        flight_id TEXT,
+        grouping_key TEXT,
+        flight_number TEXT NOT NULL,
+        airline_name TEXT,
+        origin TEXT NOT NULL,
+        destination TEXT NOT NULL,
+        departure_at TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        total_price NUMERIC(18, 2) NOT NULL,
+        status TEXT DEFAULT 'confirmed',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_bookings_created ON bookings(created_at);
     `);
   }
 
@@ -358,6 +392,53 @@ class SqliteService {
     this.db.prepare(`DELETE FROM flight_offers WHERE search_session_id = ?`).run(sessionId);
     this.db.prepare(`DELETE FROM search_sessions WHERE id = ?`).run(sessionId);
     return true;
+  }
+
+  // ==========================================
+  // Bookings (SQLite Persistence)
+  // ==========================================
+
+  saveBooking(data: DbBookingRecord): string {
+    const id = data.id || `BK-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+    const stmt = this.db.prepare(`
+      INSERT INTO bookings (
+        id, flight_id, grouping_key, flight_number, airline_name,
+        origin, destination, departure_at, provider, total_price, status, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const nowIso = data.created_at || new Date().toISOString();
+    stmt.run(
+      id,
+      data.flight_id,
+      data.grouping_key,
+      data.flight_number,
+      data.airline_name,
+      data.origin,
+      data.destination,
+      data.departure_at,
+      data.provider,
+      data.total_price,
+      data.status || 'confirmed',
+      nowIso
+    );
+    return id;
+  }
+
+  getBookings(limitCount: number = 50): any[] {
+    const stmt = this.db.prepare(`
+      SELECT * FROM bookings ORDER BY created_at DESC LIMIT ?
+    `);
+    return stmt.all(limitCount) as any[];
+  }
+
+  checkHealth(): boolean {
+    try {
+      const stmt = this.db.prepare('SELECT 1 as alive');
+      const res = stmt.get() as any;
+      return res?.alive === 1;
+    } catch {
+      return false;
+    }
   }
 
   private tryParseJson(str: string): any {

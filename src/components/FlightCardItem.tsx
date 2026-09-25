@@ -82,10 +82,12 @@ export const FlightCardItem: React.FC<FlightCardItemProps> = ({
 
   // Format Persian departure/arrival times
   const depTime = new Date(card.departureAt).toLocaleTimeString('fa-IR', {
+    timeZone: 'Asia/Tehran',
     hour: '2-digit',
     minute: '2-digit',
   });
   const arrTime = new Date(card.arrivalAt).toLocaleTimeString('fa-IR', {
+    timeZone: 'Asia/Tehran',
     hour: '2-digit',
     minute: '2-digit',
   });

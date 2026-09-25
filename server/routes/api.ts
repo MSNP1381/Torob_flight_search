@@ -28,6 +28,17 @@ export function createApiRouter(): Router {
     res.json({ status: 'ready' });
   });
 
+  // SQLite Health & Status
+  router.get('/sqlite/status', (req: Request, res: Response) => {
+    const isHealthy = sqliteService.checkHealth();
+    res.json({
+      success: isHealthy,
+      status: isHealthy ? 'connected' : 'error',
+      engine: 'SQLite (node:sqlite DatabaseSync)',
+      db_file: 'data/torob.sqlite',
+    });
+  });
+
   // Airport Search (with Persian normalization, IATA search, and city child groupings)
   router.get('/airports/search', (req: Request, res: Response) => {
     const q = String(req.query.q || '');
@@ -84,11 +95,39 @@ export function createApiRouter(): Router {
         departure_date: session.departureDate,
         grouped_cards_count: session.groupedCards.length,
         raw_offers_count: session.rawOffersCount,
+        route_notice: session.routeNotice,
+        provider_progress: session.providerProgress,
+        completed_providers_count: session.completedProvidersCount,
+        total_providers_count: session.totalProvidersCount,
+        is_all_finished: session.isAllFinished,
       });
     } catch (err: any) {
       console.error('[API /search error]:', err);
       res.status(500).json({ error: err.message || 'Search execution failed' });
     }
+  });
+
+  // Search Session Live Provider Progress Endpoint
+  router.get('/search/:sessionId/progress', (req: Request, res: Response) => {
+    const sessionId = Number(req.params.sessionId);
+    const session = getSearchSession(sessionId);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found', session_id: sessionId });
+    }
+    res.json({
+      session_id: session.id,
+      status: session.status,
+      origin: session.origin,
+      destination: session.destination,
+      departure_date: session.departureDate,
+      is_all_finished: session.isAllFinished,
+      completed_providers_count: session.completedProvidersCount,
+      total_providers_count: session.totalProvidersCount,
+      provider_progress: session.providerProgress,
+      grouped_cards_count: session.groupedCards.length,
+      raw_offers_count: session.rawOffersCount,
+      route_notice: session.routeNotice,
+    });
   });
 
   // SQLite Search History Endpoints
@@ -133,6 +172,64 @@ export function createApiRouter(): Router {
     }
   });
 
+  // SQLite Flight Bookings Endpoints
+  router.post('/bookings', (req: Request, res: Response) => {
+    try {
+      const {
+        flightId,
+        groupingKey,
+        flightNumber,
+        airlineName,
+        origin,
+        destination,
+        departureAt,
+        provider,
+        totalPrice,
+        status,
+      } = req.body || {};
+
+      if (!flightNumber || !origin || !destination) {
+        return res.status(400).json({ success: false, error: 'Missing flight details' });
+      }
+
+      const bookingId = sqliteService.saveBooking({
+        flight_id: flightId || '',
+        grouping_key: groupingKey || '',
+        flight_number: flightNumber,
+        airline_name: airlineName || '',
+        origin,
+        destination,
+        departure_at: departureAt || '',
+        provider: provider || '',
+        total_price: Number(totalPrice) || 0,
+        status: status || 'confirmed',
+      });
+
+      res.json({
+        success: true,
+        bookingId,
+        message: 'رزرو با موفقیت در پایگاه داده SQLite ذخیره شد',
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  router.get('/bookings', (req: Request, res: Response) => {
+    try {
+      const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
+      const bookings = sqliteService.getBookings(limit);
+      res.json({
+        success: true,
+        total: bookings.length,
+        bookings,
+        db_source: 'data/torob.sqlite',
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   router.get('/search/:sessionId/offers', (req: Request, res: Response) => {
     const sessionId = Number(req.params.sessionId);
     const session = getSearchSession(sessionId);
@@ -166,6 +263,11 @@ export function createApiRouter(): Router {
       sort: activeSort,
       allowed_sorts: ['Cheapest', 'Fastest', 'Earliest'],
       grouped_cards: sortedCards,
+      route_notice: session.routeNotice,
+      provider_progress: session.providerProgress,
+      completed_providers_count: session.completedProvidersCount,
+      total_providers_count: session.totalProvidersCount,
+      is_all_finished: session.isAllFinished,
     });
   });
 

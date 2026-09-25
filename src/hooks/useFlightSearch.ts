@@ -7,6 +7,7 @@ import {
   AirportOption,
   AirportCity,
   DurationBinFilter,
+  ProviderProgressStatus,
 } from '../types/flight';
 import { FlightWeightMatrix, computeFlightScores, PresetProfileName } from '../algo';
 
@@ -38,6 +39,9 @@ export function useFlightSearch(onSearchComplete?: () => void) {
   const [isSearching, setIsSearching] = useState(false);
   const [groupedFlights, setGroupedFlights] = useState<GroupedFlightCard[]>([]);
   const [rawOffersCount, setRawOffersCount] = useState(0);
+  const [providerProgress, setProviderProgress] = useState<Record<string, ProviderProgressStatus>>({});
+  const [isAllFinished, setIsAllFinished] = useState<boolean>(true);
+  const [routeNotice, setRouteNotice] = useState<string | undefined>(undefined);
 
   // Sorting and Filtering
   const [sortBy, setSortBy] = useState<FlightSortOption>('Algorithmic');
@@ -124,12 +128,27 @@ export function useFlightSearch(onSearchComplete?: () => void) {
         const createData = await createRes.json();
         const sessionId = createData.session_id;
 
+        if (createData.provider_progress) {
+          setProviderProgress(createData.provider_progress);
+          setIsAllFinished(Boolean(createData.is_all_finished));
+        }
+        if (createData.route_notice) {
+          setRouteNotice(createData.route_notice);
+        }
+
         const currentSort = overrideSort || sortBy;
         const offersRes = await fetch(`/api/search/${sessionId}/offers?sort=${currentSort}`);
         if (offersRes.ok) {
           const offersData = await offersRes.json();
           setGroupedFlights(offersData.grouped_cards || []);
           setRawOffersCount(offersData.raw_offers_count || 0);
+          if (offersData.provider_progress) {
+            setProviderProgress(offersData.provider_progress);
+            setIsAllFinished(Boolean(offersData.is_all_finished));
+          }
+          if (offersData.route_notice) {
+            setRouteNotice(offersData.route_notice);
+          }
           onSearchCompleteRef.current?.();
         }
       } catch (err) {
@@ -280,5 +299,8 @@ export function useFlightSearch(onSearchComplete?: () => void) {
     minDuration,
     earliestTime,
     performSearch,
+    providerProgress,
+    isAllFinished,
+    routeNotice,
   };
 }

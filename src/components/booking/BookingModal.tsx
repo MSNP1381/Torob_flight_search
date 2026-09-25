@@ -3,7 +3,7 @@ import { Modal, Button, Alert, Divider } from 'antd';
 import { CheckCircleOutlined } from '@ant-design/icons';
 import { GroupedFlightCard, ProviderOffer } from '../../types/flight';
 import { ProviderLogo } from '../ProviderLogo';
-import { saveBookingToFirebase } from '../../firebase/flightService';
+import { saveBookingToSqlite } from '../../services/flightService';
 import { formatToman, formatRial } from '../../utils/formatters';
 
 export interface BookingModalProps {
@@ -30,7 +30,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const handleConfirmBooking = async () => {
     setIsBookingSaving(true);
     try {
-      const docId = await saveBookingToFirebase({
+      const docId = await saveBookingToSqlite({
         flightId: flight.id,
         groupingKey: flight.groupingKey,
         flightNumber: flight.flightNumber,
@@ -112,7 +112,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           <div className="flex justify-between">
             <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>زمان حرکت:</span>
             <span className={`font-mono ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-              {new Date(flight.departureAt).toLocaleString('fa-IR')}
+              {new Date(flight.departureAt).toLocaleString('fa-IR', { timeZone: 'Asia/Tehran' })}
             </span>
           </div>
           <div className="flex justify-between">
@@ -131,10 +131,10 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           <div className="p-4 bg-emerald-950/40 border border-emerald-500/40 rounded-xl space-y-2 text-center">
             <CheckCircleOutlined className="text-3xl text-emerald-500" />
             <div className={`text-sm font-extrabold ${isDarkMode ? 'text-white' : 'text-emerald-950'}`}>
-              رزرو با موفقیت در پایگاه داده Firebase ثبت شد!
+              رزرو با موفقیت در پایگاه داده SQLite ثبت شد!
             </div>
             <div className={`text-xs ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-              شناسه پیگیری سفارش (Firestore Document ID):
+              شناسه پیگیری سفارش (SQLite Tracking ID):
             </div>
             <div
               className={`p-2 rounded-lg border font-mono text-emerald-600 dark:text-emerald-400 select-all text-xs ${
@@ -156,8 +156,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             <Alert
               type="info"
               showIcon
-              message="اتصال مستقیم به کراولر و ثبت در Firebase"
-              description={`کراولر ${providerOffer.providerName} درخواست ثبت نام مسافر و ایجاد رزرو PNR را به صورت زنده انجام خواهد داد و داده در Firestore ذخیره خواهد شد.`}
+              message="اتصال مستقیم به تامین‌کننده و ثبت در SQLite"
+              description={`درخواست رزرو از طریق سامانه ${providerOffer.providerName} ثبت شده و جزئیات تاییدیه در پایگاه داده محلی SQLite ذخیره می‌گردد.`}
               className="rounded-xl text-[11px]"
             />
 

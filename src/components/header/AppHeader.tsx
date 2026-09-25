@@ -17,7 +17,7 @@ export interface AppHeaderProps {
   setActiveTab: (tab: string) => void;
   isDarkMode: boolean;
   onToggleTheme: () => void;
-  firebaseConnected: boolean;
+  sqliteConnected?: boolean;
   historyCount: number;
   onOpenHistory: () => void;
   isAdminMode: boolean;
@@ -31,7 +31,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   setActiveTab,
   isDarkMode,
   onToggleTheme,
-  firebaseConnected,
+  sqliteConnected = true,
   historyCount,
   onOpenHistory,
   isAdminMode,
@@ -81,30 +81,23 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
               {/* SQLite Health Badge */}
               <span
-                className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono border flex-shrink-0 ${
-                  isDarkMode
-                    ? 'bg-emerald-950/50 text-emerald-300 border-emerald-800/40'
-                    : 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                }`}
-                title="پایگاه داده محلی SQLite متصل است"
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                SQLite فعال
-              </span>
-
-              {/* Cloud Connection Badge */}
-              <span
-                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono border flex-shrink-0 ${
-                  firebaseConnected
+                className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono border flex-shrink-0 ${
+                  sqliteConnected
                     ? isDarkMode
-                      ? 'bg-amber-950/50 text-amber-300 border-amber-800/40'
-                      : 'bg-amber-50 text-amber-700 border-amber-300'
+                      ? 'bg-emerald-950/50 text-emerald-300 border-emerald-800/40'
+                      : 'bg-emerald-50 text-emerald-700 border-emerald-300'
                     : isDarkMode
-                    ? 'bg-slate-800 text-slate-400 border-slate-700'
-                    : 'bg-slate-100 text-slate-500 border-slate-300'
+                    ? 'bg-rose-950/50 text-rose-300 border-rose-800/40'
+                    : 'bg-rose-50 text-rose-700 border-rose-300'
                 }`}
+                title={sqliteConnected ? 'پایگاه داده محلی SQLite متصل است' : 'عدم دسترسی به پایگاه داده SQLite'}
               >
-                {firebaseConnected ? '🔥 کلاد' : 'آفلاین'}
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    sqliteConnected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
+                  }`}
+                ></span>
+                {sqliteConnected ? '💾 SQLite فعال' : '⚠️ SQLite آفلاین'}
               </span>
 
               {/* Subtitle tag on larger screens */}

@@ -52,6 +52,15 @@ export interface GroupedFlightCard {
   savings: number;
 }
 
+export interface ProviderProgressStatus {
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
+  offersCount: number;
+  durationMs?: number;
+  message?: string;
+  isFinished: boolean;
+  updatedAt?: string;
+}
+
 export interface SearchSession {
   id: number;
   status: 'POLLING' | 'COMPLETED' | 'FAILED';
@@ -66,6 +75,10 @@ export interface SearchSession {
   rawOffersCount: number;
   routeNotice?: string;
   createdAt: number;
+  providerProgress: Record<CrawlerProviderName, ProviderProgressStatus>;
+  completedProvidersCount: number;
+  totalProvidersCount: number;
+  isAllFinished: boolean;
 }
 
 export type FlightSortOption = 'Fastest' | 'Cheapest' | 'Earliest';
@@ -355,17 +368,58 @@ export async function createSearchSession(rawPayload: any): Promise<SearchSessio
   let totalRawOffers = 0;
   const groupedCards: GroupedFlightCard[] = [];
 
-  // 1. Attempt real live provider flight search (ws.alibaba.ir live domestic flights)
+  const initialProgress: Record<CrawlerProviderName, ProviderProgressStatus> = {
+    alibaba: {
+      status: requestedProviders.includes('alibaba') ? 'IN_PROGRESS' : 'PENDING',
+      offersCount: 0,
+      durationMs: 0,
+      isFinished: !requestedProviders.includes('alibaba'),
+      message: requestedProviders.includes('alibaba') ? 'در حال ارسال درخواست به علی‌بابا...' : undefined,
+    },
+    flytoday: {
+      status: requestedProviders.includes('flytoday') ? 'IN_PROGRESS' : 'PENDING',
+      offersCount: 0,
+      durationMs: 0,
+      isFinished: !requestedProviders.includes('flytoday'),
+      message: requestedProviders.includes('flytoday') ? 'در حال ارسال درخواست به فلای‌تودی...' : undefined,
+    },
+    safarmarket: {
+      status: requestedProviders.includes('safarmarket') ? 'IN_PROGRESS' : 'PENDING',
+      offersCount: 0,
+      durationMs: 0,
+      isFinished: !requestedProviders.includes('safarmarket'),
+      message: requestedProviders.includes('safarmarket') ? 'در حال ارسال درخواست به سفرمارکت...' : undefined,
+    },
+  };
+
+  let sessionProgress = initialProgress;
+  let completedProvidersCount = 0;
+  let totalProvidersCount = requestedProviders.length;
+  let isAllFinished = false;
+
+  // Auto-correction for Tehran domestic airport: domestic flights fly out of Mehrabad (THR)
+  const effectiveOrigin = (originCode === 'IKA' && isDomestic) ? 'THR' : originCode;
+  const autoRerouteNotice = (originCode === 'IKA' && isDomestic)
+    ? 'کلیه پروازهای داخلی تهران از فرودگاه مهرآباد (THR) انجام می‌شوند؛ نتایج پروازهای واقعی مهرآباد نمایش داده شده‌اند.'
+    : undefined;
+
+  // 1. Attempt real live provider flight search (Alibaba, FlyToday, SafarMarket)
   let isLiveSuccess = false;
   try {
     const { LiveProviderIntegration } = await import('./liveIntegration.js');
     const liveResult = await LiveProviderIntegration.searchLiveFlights({
-      origin: originCode,
+      origin: effectiveOrigin,
       destination: destCode,
       departureDate: depDate,
       cabin,
       providers: requestedProviders,
     });
+    if (liveResult.providerProgress) {
+      sessionProgress = liveResult.providerProgress;
+      completedProvidersCount = liveResult.completedProvidersCount;
+      totalProvidersCount = liveResult.totalProvidersCount;
+      isAllFinished = liveResult.isAllFinished;
+    }
     if (liveResult.groupedCards && liveResult.groupedCards.length > 0) {
       groupedCards.push(...liveResult.groupedCards);
       totalRawOffers = liveResult.rawOffersCount;
@@ -642,10 +696,14 @@ export async function createSearchSession(rawPayload: any): Promise<SearchSessio
     providersRequested: requestedProviders,
     groupedCards,
     rawOffersCount: totalRawOffers,
-    routeNotice: !isDirectPossible
+    routeNotice: autoRerouteNotice || (!isDirectPossible
       ? 'این مسیر پروازی فاقد پرواز مستقیم بوده و نتایج بر اساس پروازهای کانکشن با توقف ترانزیتی معتبر ارائه شده‌اند.'
-      : undefined,
+      : undefined),
     createdAt: Date.now(),
+    providerProgress: sessionProgress,
+    completedProvidersCount,
+    totalProvidersCount,
+    isAllFinished: true,
   };
 
   // 3. Persist search session and flight offers into SQLite (data/torob.sqlite)

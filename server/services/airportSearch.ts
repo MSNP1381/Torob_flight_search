@@ -79,9 +79,10 @@ export function searchAirports(qRaw: string, limit = 20): AirportSearchCityRespo
     const isDomestic = apt.country_code === 'IR';
     const cityKey = (apt.city_en || apt.city_fa || apt.iata_code).toLowerCase();
     
+    const isTehran = cityKey === 'tehran' || cityKey === 'تهران';
     if (!cityMap.has(cityKey)) {
       cityMap.set(cityKey, {
-        cityIata: apt.iata_code,
+        cityIata: isTehran ? 'THR' : apt.iata_code,
         cityName: apt.city_fa || apt.name_fa || apt.city_en || apt.iata_code,
         countryCode: apt.country_code,
         countryName: apt.country_fa || apt.country_en || '',
@@ -90,6 +91,9 @@ export function searchAirports(qRaw: string, limit = 20): AirportSearchCityRespo
         lon: apt.lon ?? null,
         children: [],
       });
+    } else if (isTehran && apt.iata_code === 'THR') {
+      const g = cityMap.get(cityKey)!;
+      g.cityIata = 'THR';
     }
 
     const group = cityMap.get(cityKey)!;
