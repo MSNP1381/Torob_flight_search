@@ -1,4 +1,4 @@
-# BuyO Backend (Architecture v2 Scaffold)
+# Torob Backend (Architecture v2 Scaffold)
 
 Initial backend scaffold generated from `docs/ARCHITECTURE_NEW_v2.md`.
 

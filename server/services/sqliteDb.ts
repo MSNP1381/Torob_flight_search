@@ -1,8 +1,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import path from 'node:path';
 import fs from 'node:fs';
-
-const DB_PATH = path.resolve(process.cwd(), 'data', 'buyo.sqlite');
+const DB_PATH = path.resolve(process.cwd(), 'data', 'torob.sqlite');
 
 export interface DbProviderSession {
   site_name: string;

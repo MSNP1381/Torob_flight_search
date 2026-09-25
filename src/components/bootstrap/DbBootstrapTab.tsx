@@ -122,7 +122,7 @@ export const DbBootstrapTab: React.FC<DbBootstrapTabProps> = ({
             >
               <Statistic
                 title={<span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>موتور پایگاه داده</span>}
-                value="buyo.sqlite"
+                value="torob.sqlite"
                 prefix={<DatabaseOutlined className="text-indigo-500 ml-2" />}
                 valueStyle={{ color: isDarkMode ? '#fff' : '#0f172a', fontFamily: 'monospace', fontSize: '18px' }}
               />

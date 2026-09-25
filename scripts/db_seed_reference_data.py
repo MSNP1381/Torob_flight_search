@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-BuyO Reference Data Seed Script
+Torob Reference Data Seed Script
 Populates reference data tables (static_data, airlines, providers)
 from JSON datasets (misc/airports.json, misc/airlines_complete.json).
 Usage:
@@ -15,7 +15,7 @@ import sqlite3
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-DB_FILE = BASE_DIR / "data" / "buyo.sqlite"
+DB_FILE = BASE_DIR / "data" / "torob.sqlite"
 DEFAULT_AIRPORTS_FILE = BASE_DIR / "misc" / "airports.json"
 DEFAULT_AIRLINES_FILE = BASE_DIR / "misc" / "airlines_complete.json"
 
@@ -103,7 +103,7 @@ def seed_airlines(cursor, file_path):
     return len(rows)
 
 def main():
-    parser = argparse.ArgumentParser(description="Seed BuyO Reference Data")
+    parser = argparse.ArgumentParser(description="Seed Torob Reference Data")
     parser.add_argument("--airports-file", default=str(DEFAULT_AIRPORTS_FILE), help="Path to airports.json")
     parser.add_argument("--airlines-file", default=str(DEFAULT_AIRLINES_FILE), help="Path to airlines_complete.json")
     args = parser.parse_args()

@@ -75,12 +75,12 @@ async function startServer() {
   }
 
   app.listen(PORT, HOST, () => {
-    console.log(`[BuyO Backend] Server listening on http://${HOST}:${PORT}`);
-    console.log(`[BuyO Backend] API Prefix: ${apiPrefix}`);
+    console.log(`[Torob Backend] Server listening on http://${HOST}:${PORT}`);
+    console.log(`[Torob Backend] API Prefix: ${apiPrefix}`);
   });
 }
 
 startServer().catch((err) => {
-  console.error('[BuyO Backend] Failed to start server:', err);
+  console.error('[Torob Backend] Failed to start server:', err);
   process.exit(1);
 });

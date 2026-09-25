@@ -91,7 +91,7 @@ export function generateFlightGroupingKey(params: {
 
   const cleanCabin = (params.cabin || 'economy').trim().toLowerCase();
 
-  // Canonical BuyO formula:
+  // Canonical Torob formula:
   // FLIGHT_<AIRLINE>_<FLIGHT_NUM>_<ORIGIN>_<DESTINATION>_<DEP_TIME>_<CABIN>
   const groupingKey = `FLIGHT_${cleanAirline}_${cleanFltNum}_${cleanOrigin}_${cleanDest}_${depMinuteStr}_${cleanCabin}`;
   const flightHash = crypto.createHash('sha256').update(groupingKey).digest('hex').slice(0, 16);
@@ -422,7 +422,7 @@ export async function createSearchSession(rawPayload: any): Promise<SearchSessio
       // Combined flight number for connecting journey (e.g. TK-871 / TK-17)
       const flightNumber = `${carrier.flightPrefix1} / ${carrier.flightPrefix2}`;
 
-      // Canonical BuyO grouping key for connecting itinerary
+      // Canonical Torob grouping key for connecting itinerary
       const { groupingKey, flightHash } = generateFlightGroupingKey({
         airlineCode: carrier.airline.iata,
         flightNumber,
@@ -648,7 +648,7 @@ export async function createSearchSession(rawPayload: any): Promise<SearchSessio
     createdAt: Date.now(),
   };
 
-  // 3. Persist search session and flight offers into SQLite (data/buyo.sqlite)
+  // 3. Persist search session and flight offers into SQLite (data/torob.sqlite)
   try {
     const { sqliteService } = await import('./sqliteDb.js');
     const dbSessionId = sqliteService.saveSearchSession({

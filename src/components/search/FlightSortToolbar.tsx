@@ -162,7 +162,7 @@ export const FlightSortToolbar: React.FC<FlightSortToolbarProps> = ({
                 </span>
                 <button
                   type="button"
-                  onClick={() => setSelectedAlgoProfile('bestDeal')}
+                  onClick={() => { setSortBy('Algorithmic'); setSelectedAlgoProfile('bestDeal'); }}
                   className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition cursor-pointer flex items-center gap-1.5 ${
                     selectedAlgoProfile === 'bestDeal'
                       ? 'bg-blue-600 text-white shadow-xs'
@@ -176,7 +176,7 @@ export const FlightSortToolbar: React.FC<FlightSortToolbarProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setSelectedAlgoProfile('business')}
+                  onClick={() => { setSortBy('Algorithmic'); setSelectedAlgoProfile('business'); }}
                   className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition cursor-pointer flex items-center gap-1.5 ${
                     selectedAlgoProfile === 'business'
                       ? 'bg-indigo-600 text-white shadow-xs'
@@ -190,7 +190,7 @@ export const FlightSortToolbar: React.FC<FlightSortToolbarProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setSelectedAlgoProfile('student')}
+                  onClick={() => { setSortBy('Algorithmic'); setSelectedAlgoProfile('student'); }}
                   className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition cursor-pointer flex items-center gap-1.5 ${
                     selectedAlgoProfile === 'student'
                       ? 'bg-emerald-600 text-white shadow-xs'
@@ -204,7 +204,7 @@ export const FlightSortToolbar: React.FC<FlightSortToolbarProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setSelectedAlgoProfile('family')}
+                  onClick={() => { setSortBy('Algorithmic'); setSelectedAlgoProfile('family'); }}
                   className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition cursor-pointer flex items-center gap-1.5 ${
                     selectedAlgoProfile === 'family'
                       ? 'bg-purple-600 text-white shadow-xs'
@@ -218,7 +218,7 @@ export const FlightSortToolbar: React.FC<FlightSortToolbarProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setSelectedAlgoProfile('fastest')}
+                  onClick={() => { setSortBy('Algorithmic'); setSelectedAlgoProfile('fastest'); }}
                   className={`px-3 py-1.5 text-xs font-semibold rounded-xl transition cursor-pointer flex items-center gap-1.5 ${
                     selectedAlgoProfile === 'fastest'
                       ? 'bg-sky-600 text-white shadow-xs'

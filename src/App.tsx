@@ -135,7 +135,7 @@ export default function App() {
       urlParams.has('admin') ||
       urlParams.has('dev') ||
       urlParams.has('creds') ||
-      localStorage.getItem('buyo_dev_mode') === 'true'
+      localStorage.getItem('torob_dev_mode') === 'true'
     );
   });
   const [secretClickCount, setSecretClickCount] = useState<number>(0);
@@ -152,7 +152,7 @@ export default function App() {
         setIsAdminMode(true);
         setIsSessionModalOpen((prev) => !prev);
         try {
-          localStorage.setItem('buyo_dev_mode', 'true');
+          localStorage.setItem('torob_dev_mode', 'true');
         } catch {}
       }
     };
@@ -168,7 +168,7 @@ export default function App() {
       setIsSessionModalOpen(true);
       setSecretClickCount(0);
       try {
-        localStorage.setItem('buyo_dev_mode', 'true');
+        localStorage.setItem('torob_dev_mode', 'true');
       } catch {}
     }
   };
@@ -213,6 +213,7 @@ export default function App() {
           isAdminMode={isAdminMode}
           onOpenSessionModal={() => setIsSessionModalOpen(true)}
           onSecretTrigger={handleSecretTrigger}
+          selectedProvidersCount={selectedProviders.length}
         />
 
         {/* Main Content Body */}

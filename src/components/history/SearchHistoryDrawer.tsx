@@ -33,7 +33,7 @@ export const SearchHistoryDrawer: React.FC<SearchHistoryDrawerProps> = ({
             تاریخچه استعلام‌های ذخیره شده در SQLite
           </span>
           <Tag color="cyan" className="font-mono text-xs">
-            data/buyo.sqlite
+            data/torob.sqlite
           </Tag>
         </div>
       }

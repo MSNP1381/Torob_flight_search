@@ -18,4 +18,10 @@ x.ipynb
 node_modules/
 dist/
 
-data/buyo.sqlite
+data/*.sqlite
+
+*.sqlite
+
+.agents
+
+brag-output

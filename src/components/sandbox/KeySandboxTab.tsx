@@ -35,7 +35,7 @@ export const KeySandboxTab: React.FC<KeySandboxTabProps> = ({
             آزمایشگاه تولید کلید تجمیع پرواز (Deterministic Grouping Key Lab)
           </h2>
           <p className={`text-xs m-0 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-            فرمول رسمی استاندارد BuyO برای شناسایی پروازهای فیزیکی یکسان از کراولرهای مختلف
+            فرمول رسمی استاندارد Torob برای شناسایی پروازهای فیزیکی یکسان از کراولرهای مختلف
           </p>
         </div>
 

@@ -1,6 +1,6 @@
 /**
  * Provider Session Store
- * Handles in-memory caching and SQLite (data/buyo.sqlite) persistence of crawler cookies and credentials.
+ * Handles in-memory caching and SQLite (data/torob.sqlite) persistence of crawler cookies and credentials.
  */
 
 import { sqliteService, DbProviderSession } from './sqliteDb.js';

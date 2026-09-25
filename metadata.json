@@ -1,6 +1,6 @@
 {
-  "name": "BuyO Flight Backend & Platform",
-  "description": "BuyO flight aggregator and booking backend platform supporting multiple GDS and crawler providers with unified flight search, airport auto-complete, and booking pipeline.",
+  "name": "Torob Flight Backend & Platform",
+  "description": "Torob flight aggregator and booking backend platform supporting multiple GDS and crawler providers with unified flight search, airport auto-complete, and booking pipeline.",
   "permissions": [],
   "capabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

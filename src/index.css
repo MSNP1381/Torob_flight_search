@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Ant Design layout header reset */
+.ant-layout-header {
+  height: auto !important;
+  line-height: normal !important;
+  padding: 0 !important;
+  background: transparent !important;
+}
+
 @layer base {
   :root {
     color-scheme: light dark;

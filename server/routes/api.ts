@@ -100,7 +100,7 @@ export function createApiRouter(): Router {
         success: true,
         total: searches.length,
         searches,
-        db_source: 'data/buyo.sqlite',
+        db_source: 'data/torob.sqlite',
       });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });
@@ -116,7 +116,7 @@ export function createApiRouter(): Router {
         session_id: id,
         total_offers: offers.length,
         offers,
-        db_source: 'data/buyo.sqlite',
+        db_source: 'data/torob.sqlite',
       });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });
@@ -196,7 +196,7 @@ export function createApiRouter(): Router {
 
   // DB and Reference Data status
   router.get('/bootstrap/status', (req: Request, res: Response) => {
-    const dbPath = path.resolve(process.cwd(), 'data/buyo.sqlite');
+    const dbPath = path.resolve(process.cwd(), 'data/torob.sqlite');
     const dbExists = fs.existsSync(dbPath);
     let dbSize = 0;
     if (dbExists) {
@@ -207,7 +207,7 @@ export function createApiRouter(): Router {
     const airlinesCount = getAirlines().length;
 
     res.json({
-      db_file: 'data/buyo.sqlite',
+      db_file: 'data/torob.sqlite',
       db_exists: dbExists,
       db_size_bytes: dbSize,
       airports_raw_count: airportsCount,

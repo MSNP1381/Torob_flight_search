@@ -1,5 +1,5 @@
 import React from 'react';
-import { Layout, Tooltip, Switch, Badge } from 'antd';
+import { Tooltip } from 'antd';
 import {
   RocketOutlined,
   ApartmentOutlined,
@@ -12,8 +12,6 @@ import {
   MoonOutlined,
 } from '@ant-design/icons';
 
-const { Header } = Layout;
-
 export interface AppHeaderProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
@@ -25,6 +23,7 @@ export interface AppHeaderProps {
   isAdminMode: boolean;
   onOpenSessionModal: () => void;
   onSecretTrigger: () => void;
+  selectedProvidersCount?: number;
 }
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
@@ -38,85 +37,110 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   isAdminMode,
   onOpenSessionModal,
   onSecretTrigger,
+  selectedProvidersCount = 3,
 }) => {
   return (
-    <Header
-      className={`px-4 sm:px-6 h-auto py-3 backdrop-blur-md sticky top-0 z-50 shadow-sm border-b transition-colors duration-200 ${
+    <header
+      className={`sticky top-0 z-50 backdrop-blur-md shadow-xs border-b transition-colors duration-200 ${
         isDarkMode
-          ? 'bg-[#0b1324]/90 border-slate-800 text-slate-100'
+          ? 'bg-slate-950/95 border-slate-800/80 text-slate-100'
           : 'bg-white/95 border-slate-200 text-slate-900'
       }`}
+      style={{ lineHeight: 'normal' }}
     >
-      <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        {/* Brand & Indicators */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+      {/* Top Bar: Brand, Status Indicators & System Actions */}
+      <div className="border-b border-slate-100 dark:border-slate-800/60">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between gap-3">
+          {/* Brand Identity & Real-time Status Badges */}
+          <div className="flex items-center gap-3 min-w-0">
+            {/* Rocket Logo Icon (3-clicks secret admin trigger) */}
             <div
               onClick={onSecretTrigger}
-              title="سامانه تجمیع پرواز ترب / BuyO (برای باز کردن پنل ادمین ۳ بار کلیک کنید)"
-              className="h-10 w-10 rounded-xl bg-gradient-to-tr from-amber-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-md shadow-blue-500/20 text-white flex-shrink-0 cursor-pointer active:scale-95 transition-transform"
+              title="سامانه تجمیع پرواز ترب (برای باز کردن پنل ادمین ۳ بار کلیک کنید)"
+              className="h-9 w-9 rounded-xl bg-gradient-to-tr from-amber-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-md shadow-blue-500/20 text-white flex-shrink-0 cursor-pointer active:scale-95 transition-transform"
             >
-              <RocketOutlined className="text-lg transform -rotate-45" />
+              <RocketOutlined className="text-base transform -rotate-45" />
             </div>
 
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-lg sm:text-xl font-black tracking-tight bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-500 dark:from-amber-400 dark:via-sky-300 dark:to-blue-400 bg-clip-text text-transparent">
-                  موتور تجمیع پرواز ترب (BuyO)
-                </span>
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
+              {/* Main Title */}
+              <span className="text-base sm:text-lg font-black tracking-tight bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-500 dark:from-sky-400 dark:via-blue-300 dark:to-indigo-300 bg-clip-text text-transparent truncate">
+                موتور تجمیع پرواز ترب
+              </span>
 
-                <span
-                  className={`hidden sm:inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-mono border ${
-                    isDarkMode
-                      ? 'bg-blue-950/40 text-blue-300 border-blue-800/50'
-                      : 'bg-blue-50 text-blue-700 border-blue-200'
-                  }`}
-                >
-                  ۳ کراولر همزمان
-                </span>
+              {/* Crawlers Count Badge */}
+              <span
+                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono border flex-shrink-0 ${
+                  isDarkMode
+                    ? 'bg-blue-950/50 text-blue-300 border-blue-800/50'
+                    : 'bg-blue-50 text-blue-700 border-blue-200'
+                }`}
+              >
+                {selectedProvidersCount} کراولر فعال
+              </span>
 
-                <span
-                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono border ${
-                    isDarkMode
-                      ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/40'
-                      : 'bg-emerald-50 text-emerald-700 border-emerald-300'
-                  }`}
-                  title="پایگاه داده محلی SQLite متصل است"
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  SQLite فعال
-                </span>
+              {/* SQLite Health Badge */}
+              <span
+                className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono border flex-shrink-0 ${
+                  isDarkMode
+                    ? 'bg-emerald-950/50 text-emerald-300 border-emerald-800/40'
+                    : 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                }`}
+                title="پایگاه داده محلی SQLite متصل است"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                SQLite فعال
+              </span>
 
-                <span
-                  className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-mono border ${
-                    firebaseConnected
-                      ? isDarkMode
-                        ? 'bg-amber-950/40 text-amber-300 border-amber-800/40'
-                        : 'bg-amber-50 text-amber-700 border-amber-300'
-                      : isDarkMode
-                      ? 'bg-slate-800 text-slate-400 border-slate-700'
-                      : 'bg-slate-100 text-slate-500 border-slate-300'
-                  }`}
-                >
-                  {firebaseConnected ? '🔥 کلاد' : 'آفلاین'}
-                </span>
-              </div>
-              <p className={`text-[11px] m-0 hidden sm:block ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                یکپارچه‌سازی و رتبه‌بندی بلادرنگ پروازها از علی‌بابا، فلای‌تودی و سفرمارکت
-              </p>
+              {/* Cloud Connection Badge */}
+              <span
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono border flex-shrink-0 ${
+                  firebaseConnected
+                    ? isDarkMode
+                      ? 'bg-amber-950/50 text-amber-300 border-amber-800/40'
+                      : 'bg-amber-50 text-amber-700 border-amber-300'
+                    : isDarkMode
+                    ? 'bg-slate-800 text-slate-400 border-slate-700'
+                    : 'bg-slate-100 text-slate-500 border-slate-300'
+                }`}
+              >
+                {firebaseConnected ? '🔥 کلاد' : 'آفلاین'}
+              </span>
+
+              {/* Subtitle tag on larger screens */}
+              <span className="hidden xl:inline text-[11px] text-slate-400 dark:text-slate-500 font-normal mr-2">
+                یکپارچه‌سازی و رتبه‌بندی بلادرنگ پروازها
+              </span>
             </div>
           </div>
 
-          {/* Theme Toggle Button */}
-          <div className="flex items-center gap-2">
+          {/* Right Action Tools: Admin button & Theme Toggle */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {isAdminMode && (
+              <button
+                type="button"
+                onClick={onOpenSessionModal}
+                className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border ${
+                  isDarkMode
+                    ? 'bg-amber-950/40 text-amber-300 border-amber-600/50 hover:bg-amber-900/60'
+                    : 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100'
+                }`}
+                title="پنل مدیریت داخلی: کوکی‌ها، اعتبارنامه‌ها و پروکسی ایران (Ctrl+Shift+C)"
+              >
+                <SafetyCertificateOutlined />
+                <span className="font-mono text-[11px] hidden sm:inline">پروکسی و کوکی‌ها</span>
+              </button>
+            )}
+
+            {/* Theme Toggle Button */}
             <Tooltip title={isDarkMode ? 'تغییر به حالت روز' : 'تغییر به حالت شب'}>
               <button
                 type="button"
                 onClick={onToggleTheme}
                 aria-label="تغییر حالت تم"
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold cursor-pointer transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold cursor-pointer transition-all ${
                   isDarkMode
-                    ? 'bg-slate-800/80 hover:bg-slate-800 text-amber-300 border-slate-700'
+                    ? 'bg-slate-800/90 hover:bg-slate-800 text-amber-300 border-slate-700'
                     : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200 shadow-xs'
                 }`}
               >
@@ -132,105 +156,89 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             </Tooltip>
           </div>
         </div>
-
-        {/* Navigation Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto whitespace-nowrap pb-1 md:pb-0 scrollbar-none">
-          <button
-            type="button"
-            onClick={() => setActiveTab('grouped_search')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 flex-shrink-0 cursor-pointer ${
-              activeTab === 'grouped_search'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : isDarkMode
-                ? 'bg-slate-800/70 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-700/60'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900 border border-slate-200'
-            }`}
-          >
-            <ApartmentOutlined />
-            <span>جستجوی پرواز</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onOpenHistory}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 flex-shrink-0 cursor-pointer border ${
-              isDarkMode
-                ? 'bg-slate-800/70 text-slate-300 hover:bg-slate-800 hover:text-white border-slate-700/60'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900 border-slate-200'
-            }`}
-            title="مشاهده تاریخچه استعلام‌های ذخیره شده در SQLite"
-          >
-            <HistoryOutlined className="text-emerald-500" />
-            <span>تاریخچه استعلام‌ها</span>
-            {historyCount > 0 && (
-              <span className="px-1.5 py-0.2 bg-emerald-500/20 text-emerald-400 font-mono rounded-full text-[10px]">
-                {historyCount}
-              </span>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('airports')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 flex-shrink-0 cursor-pointer ${
-              activeTab === 'airports'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : isDarkMode
-                ? 'bg-slate-800/70 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-700/60'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900 border border-slate-200'
-            }`}
-          >
-            <GlobalOutlined />
-            <span>بانک فرودگاه‌ها (۹,۳۲۰)</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('key_sandbox')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 flex-shrink-0 cursor-pointer ${
-              activeTab === 'key_sandbox'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : isDarkMode
-                ? 'bg-slate-800/70 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-700/60'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900 border border-slate-200'
-            }`}
-          >
-            <KeyOutlined />
-            <span>آزمایشگاه کلید</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('db_bootstrap')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 flex-shrink-0 cursor-pointer ${
-              activeTab === 'db_bootstrap'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : isDarkMode
-                ? 'bg-slate-800/70 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-700/60'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900 border border-slate-200'
-            }`}
-          >
-            <DatabaseOutlined />
-            <span>دیتابیس</span>
-          </button>
-
-          {isAdminMode && (
-            <button
-              type="button"
-              onClick={onOpenSessionModal}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 flex-shrink-0 cursor-pointer border ${
-                isDarkMode
-                  ? 'bg-amber-950/40 text-amber-300 border-amber-600/50 hover:bg-amber-900/60'
-                  : 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100'
-              }`}
-              title="پنل مدیریت داخلی: کوکی‌ها، اعتبارنامه‌ها و پروکسی ایران (Ctrl+Shift+C)"
-            >
-              <SafetyCertificateOutlined />
-              <span className="font-mono text-[11px]">پروکسی و کوکی‌ها</span>
-            </button>
-          )}
-        </div>
       </div>
-    </Header>
+
+      {/* Bottom Bar: Tab Navigation Strip */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2 flex items-center gap-1.5 overflow-x-auto whitespace-nowrap scrollbar-none">
+        <button
+          type="button"
+          onClick={() => setActiveTab('grouped_search')}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 flex-shrink-0 cursor-pointer ${
+            activeTab === 'grouped_search'
+              ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/20'
+              : isDarkMode
+              ? 'bg-slate-900/80 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-800'
+              : 'bg-slate-100/90 text-slate-700 hover:bg-slate-200 hover:text-slate-900 border border-slate-200'
+          }`}
+        >
+          <ApartmentOutlined />
+          <span>جستجوی پرواز</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={onOpenHistory}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 flex-shrink-0 cursor-pointer border ${
+            isDarkMode
+              ? 'bg-slate-900/80 text-slate-300 hover:bg-slate-800 hover:text-white border-slate-800'
+              : 'bg-slate-100/90 text-slate-700 hover:bg-slate-200 hover:text-slate-900 border border-slate-200'
+          }`}
+          title="مشاهده تاریخچه استعلام‌های ذخیره شده در SQLite"
+        >
+          <HistoryOutlined className="text-emerald-500" />
+          <span>تاریخچه استعلام‌ها</span>
+          {historyCount > 0 && (
+            <span className="px-1.5 py-0.2 bg-emerald-500/20 text-emerald-400 font-mono rounded-full text-[10px]">
+              {historyCount}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('airports')}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 flex-shrink-0 cursor-pointer ${
+            activeTab === 'airports'
+              ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/20'
+              : isDarkMode
+              ? 'bg-slate-900/80 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-800'
+              : 'bg-slate-100/90 text-slate-700 hover:bg-slate-200 hover:text-slate-900 border border-slate-200'
+          }`}
+        >
+          <GlobalOutlined />
+          <span>بانک فرودگاه‌ها (۹,۳۲۰)</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('key_sandbox')}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 flex-shrink-0 cursor-pointer ${
+            activeTab === 'key_sandbox'
+              ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/20'
+              : isDarkMode
+              ? 'bg-slate-900/80 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-800'
+              : 'bg-slate-100/90 text-slate-700 hover:bg-slate-200 hover:text-slate-900 border border-slate-200'
+          }`}
+        >
+          <KeyOutlined />
+          <span>آزمایشگاه کلید</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('db_bootstrap')}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 flex-shrink-0 cursor-pointer ${
+            activeTab === 'db_bootstrap'
+              ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/20'
+              : isDarkMode
+              ? 'bg-slate-900/80 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-800'
+              : 'bg-slate-100/90 text-slate-700 hover:bg-slate-200 hover:text-slate-900 border border-slate-200'
+          }`}
+        >
+          <DatabaseOutlined />
+          <span>دیتابیس</span>
+        </button>
+      </div>
+    </header>
   );
 };

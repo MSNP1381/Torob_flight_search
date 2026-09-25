@@ -40,7 +40,7 @@ export function useFlightSearch(onSearchComplete?: () => void) {
   const [rawOffersCount, setRawOffersCount] = useState(0);
 
   // Sorting and Filtering
-  const [sortBy, setSortBy] = useState<FlightSortOption>('Cheapest');
+  const [sortBy, setSortBy] = useState<FlightSortOption>('Algorithmic');
   const [selectedDurationBin, setSelectedDurationBin] = useState<DurationBinFilter | null>(null);
 
   // Algorithmic Weight Matrix State & Personas
@@ -165,9 +165,21 @@ export function useFlightSearch(onSearchComplete?: () => void) {
 
   // Grouped flights sorted by: 'Algorithmic', 'Cheapest', 'Fastest', or 'Earliest'
   const sortedFlights = useMemo(() => {
-    let list = [...groupedFlights];
+    // 1. Deduplicate by card id / canonical grouping key
+    const uniqueMap = new Map<string, GroupedFlightCard>();
+    for (const f of groupedFlights) {
+      if (!uniqueMap.has(f.id)) {
+        uniqueMap.set(f.id, f);
+      } else {
+        const existing = uniqueMap.get(f.id)!;
+        if (f.bestPrice.totalPrice < existing.bestPrice.totalPrice) {
+          uniqueMap.set(f.id, f);
+        }
+      }
+    }
+    let list = Array.from(uniqueMap.values());
 
-    // Filter by duration window if selected in histogram
+    // 2. Filter by duration window if selected in histogram
     if (selectedDurationBin) {
       list = list.filter(
         (f) =>
@@ -176,24 +188,41 @@ export function useFlightSearch(onSearchComplete?: () => void) {
       );
     }
 
+    // 3. Deterministic sorting with stable tie-breakers
     if (sortBy === 'Algorithmic') {
-      return list.sort((a, b) => {
+      return [...list].sort((a, b) => {
         const scoreA = algorithmicScores[a.id] ?? 0;
         const scoreB = algorithmicScores[b.id] ?? 0;
-        return scoreB - scoreA;
+        if (scoreB !== scoreA) {
+          return scoreB - scoreA;
+        }
+        return a.bestPrice.totalPrice - b.bestPrice.totalPrice;
       });
     }
     if (sortBy === 'Cheapest') {
-      return list.sort((a, b) => a.bestPrice.totalPrice - b.bestPrice.totalPrice);
+      return [...list].sort((a, b) => {
+        if (a.bestPrice.totalPrice !== b.bestPrice.totalPrice) {
+          return a.bestPrice.totalPrice - b.bestPrice.totalPrice;
+        }
+        return a.durationMinutes - b.durationMinutes;
+      });
     }
     if (sortBy === 'Fastest') {
-      return list.sort((a, b) => a.durationMinutes - b.durationMinutes);
+      return [...list].sort((a, b) => {
+        if (a.durationMinutes !== b.durationMinutes) {
+          return a.durationMinutes - b.durationMinutes;
+        }
+        return a.bestPrice.totalPrice - b.bestPrice.totalPrice;
+      });
     }
     if (sortBy === 'Earliest') {
-      return list.sort((a, b) => {
+      return [...list].sort((a, b) => {
         const timeA = new Date(a.departureAt).getTime();
         const timeB = new Date(b.departureAt).getTime();
-        return timeA - timeB;
+        if (timeA !== timeB) {
+          return timeA - timeB;
+        }
+        return a.bestPrice.totalPrice - b.bestPrice.totalPrice;
       });
     }
     return list;

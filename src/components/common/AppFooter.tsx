@@ -18,7 +18,7 @@ export const AppFooter: React.FC<AppFooterProps> = ({ isDarkMode }) => {
     >
       <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 px-4">
         <div>
-          سامانه تجمیع و مقایسه هوشمند پرواز BuyO • طراحی شده برای وب‌سایت ترب
+          سامانه تجمیع و مقایسه هوشمند پرواز • موتور جستجوی پرواز ترب
         </div>
         <div className="font-mono text-[11px] text-slate-400">
           نسخه ۲.۰ • پشتیبانی از پروتکل‌های علی‌بابا، فلای‌تودی و سفرمارکت

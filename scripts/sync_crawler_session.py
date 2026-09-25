@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-BuyO Crawler Session Sync Helper
+Torob Crawler Session Sync Helper
 Sends generated browser cookies, headers, and session tokens from local dev environment
-or residential proxy machine to the BuyO cloud backend / Firestore database.
+or residential proxy machine to the Torob cloud backend / Firestore database.
 Supports Iran proxy binding and automatic credential refresh.
 """
 
@@ -31,7 +31,7 @@ def sync_session(api_url: str, site_name: str, cookies: str, proxy_binding: str 
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode("utf-8"))
-            print(f"✅ Successfully synced {site_name} session to BuyO backend:")
+            print(f"✅ Successfully synced {site_name} session to Torob backend:")
             print(json.dumps(data, indent=2, ensure_ascii=False))
             return True
     except urllib.error.HTTPError as e:
@@ -60,8 +60,8 @@ def auto_refresh_all(api_url: str, site_name: str = None):
         return False
 
 def main():
-    parser = argparse.ArgumentParser(description="Sync crawler session cookies to BuyO cloud backend")
-    parser.add_argument("--url", default="http://localhost:3000", help="BuyO API base URL")
+    parser = argparse.ArgumentParser(description="Sync crawler session cookies to Torob cloud backend")
+    parser.add_argument("--url", default="http://localhost:3000", help="Torob API base URL")
     parser.add_argument("--site", choices=["alibaba", "flytoday", "safarmarket"], help="Provider site name")
     parser.add_argument("--cookies", help="Cookie header string or JSON file path with cookies")
     parser.add_argument("--proxy", default="http://5.160.201.213:8080 (Iran)", help="Assigned residential or datacenter Iran proxy")

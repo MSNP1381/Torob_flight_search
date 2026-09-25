@@ -2,7 +2,7 @@
  * Real Provider Live Integration Service
  * Executes live search queries against Alibaba, FlyToday, and SafarMarket.
  * Interacts directly with the verified Alibaba Domestic Flights API (ws.alibaba.ir).
- * Persists crawler cookies and credentials directly to SQLite (data/buyo.sqlite).
+ * Persists crawler cookies and credentials directly to SQLite (data/torob.sqlite).
  */
 
 import { ProviderSessionService, ProviderSessionData } from './providerSessions.js';
@@ -278,7 +278,7 @@ export class LiveProviderIntegration {
       AA: { name: 'FlyPersia Airlines', nameFa: 'هواپیمایی فلای پرشیا', code: 'FPA', iata: 'FP' },
     };
 
-    const groupedCards: GroupedFlightCard[] = [];
+    const groupedCardsMap = new Map<string, GroupedFlightCard>();
 
     // Map each flight
     for (const f of rawFlights) {
@@ -398,37 +398,57 @@ export class LiveProviderIntegration {
       }
 
       if (providerOffers.length > 0) {
-        providerOffers.sort((a, b) => a.totalPrice - b.totalPrice);
-        const bestPrice = providerOffers[0];
-        const highestPrice = providerOffers[providerOffers.length - 1];
-        const savings = Math.max(0, highestPrice.totalPrice - bestPrice.totalPrice);
+        if (groupedCardsMap.has(flightHash)) {
+          // Flight already exists under canonical grouping key; merge & keep best offers
+          const existingCard = groupedCardsMap.get(flightHash)!;
+          for (const newOffer of providerOffers) {
+            const existingOfferIdx = existingCard.providers.findIndex((p) => p.provider === newOffer.provider);
+            if (existingOfferIdx >= 0) {
+              if (newOffer.totalPrice < existingCard.providers[existingOfferIdx].totalPrice) {
+                existingCard.providers[existingOfferIdx] = newOffer;
+              }
+            } else {
+              existingCard.providers.push(newOffer);
+            }
+          }
+          existingCard.providers.sort((a, b) => a.totalPrice - b.totalPrice);
+          existingCard.providerCount = existingCard.providers.length;
+          existingCard.bestPrice = existingCard.providers[0];
+          existingCard.highestPrice = existingCard.providers[existingCard.providers.length - 1];
+          existingCard.savings = Math.max(0, existingCard.highestPrice.totalPrice - existingCard.bestPrice.totalPrice);
+        } else {
+          providerOffers.sort((a, b) => a.totalPrice - b.totalPrice);
+          const bestPrice = providerOffers[0];
+          const highestPrice = providerOffers[providerOffers.length - 1];
+          const savings = Math.max(0, highestPrice.totalPrice - bestPrice.totalPrice);
 
-        groupedCards.push({
-          id: flightHash,
-          groupingKey,
-          airline,
-          flightNumber,
-          origin,
-          originName,
-          destination,
-          destinationName,
-          departureAt: departureIso,
-          arrivalAt: arrivalIso,
-          duration: durationStr,
-          durationMinutes,
-          stops: 0,
-          cabin,
-          isDomestic: true,
-          providers: providerOffers,
-          providerCount: providerOffers.length,
-          bestPrice,
-          highestPrice,
-          savings,
-        });
+          groupedCardsMap.set(flightHash, {
+            id: flightHash,
+            groupingKey,
+            airline,
+            flightNumber,
+            origin,
+            originName,
+            destination,
+            destinationName,
+            departureAt: departureIso,
+            arrivalAt: arrivalIso,
+            duration: durationStr,
+            durationMinutes,
+            stops: 0,
+            cabin,
+            isDomestic: true,
+            providers: providerOffers,
+            providerCount: providerOffers.length,
+            bestPrice,
+            highestPrice,
+            savings,
+          });
+        }
       }
     }
 
-    return groupedCards;
+    return Array.from(groupedCardsMap.values());
   }
 
   /**
@@ -474,7 +494,7 @@ export class LiveProviderIntegration {
 
   /**
    * Auto-generate & refresh crawler session cookies, credentials & tokens
-   * Saves directly to SQLite (data/buyo.sqlite)
+   * Saves directly to SQLite (data/torob.sqlite)
    */
   static async autoRefreshSession(
     provider: 'alibaba' | 'flytoday' | 'safarmarket'

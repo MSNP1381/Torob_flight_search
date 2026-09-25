@@ -4,7 +4,7 @@ import { theme, ThemeConfig } from 'antd';
 export function useThemeMode() {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     try {
-      const saved = localStorage.getItem('buyo_theme_mode');
+      const saved = localStorage.getItem('torob_theme_mode');
       if (saved) return saved === 'dark';
       return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
     } catch {
@@ -14,7 +14,7 @@ export function useThemeMode() {
 
   useEffect(() => {
     try {
-      localStorage.setItem('buyo_theme_mode', isDarkMode ? 'dark' : 'light');
+      localStorage.setItem('torob_theme_mode', isDarkMode ? 'dark' : 'light');
       if (isDarkMode) {
         document.documentElement.classList.add('dark');
         document.documentElement.setAttribute('data-theme', 'dark');
@@ -50,6 +50,12 @@ export function useThemeMode() {
         Select: {
           colorBgContainer: isDarkMode ? '#0f172a' : '#ffffff',
           colorBorder: isDarkMode ? '#334155' : '#cbd5e1',
+        },
+        Layout: {
+          headerBg: 'transparent',
+          headerHeight: 0,
+          headerPadding: '0px',
+          bodyBg: isDarkMode ? '#020617' : '#f8fafc',
         },
       },
     };

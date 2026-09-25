@@ -6,7 +6,7 @@ const BASE_DIR = process.cwd();
 const PY_BOOTSTRAP = path.join(BASE_DIR, 'scripts', 'db_bootstrap.py');
 const PY_SEED = path.join(BASE_DIR, 'scripts', 'db_seed_reference_data.py');
 
-console.log('🚀 Running BuyO Database Bootstrap & Reference Data Seeding...');
+console.log('🚀 Running Torob Database Bootstrap & Reference Data Seeding...');
 
 try {
   console.log('1. Executing schema bootstrap...');

@@ -5,7 +5,7 @@ import { sqliteService } from '../server/services/sqliteDb.js';
 
 async function main() {
   console.log('--- 1. Resetting alibaba session to clean state ---');
-  const db = new DatabaseSync('data/buyo.sqlite');
+  const db = new DatabaseSync('data/torob.sqlite');
   db.prepare("UPDATE provider_sessions SET cookies = '' WHERE site_name = 'alibaba'").run();
 
   console.log('--- 2. Executing createSearchSession for THR-MHD on 2026-09-26 ---');

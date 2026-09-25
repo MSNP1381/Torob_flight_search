@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-BuyO Database Bootstrap Script
-Creates all tables, sequences, and indexes for BuyO flights platform according to
-docs/buyo_schema.dbml and docs/buyo_db_proposal.md.
+Torob Database Bootstrap Script
+Creates all tables, sequences, and indexes for Torob flights platform according to
+docs/schema.dbml.
 Supports PostgreSQL (via psycopg2/asyncpg/sqlalchemy if DATABASE_URL is configured)
-or SQLite fallback (data/buyo.sqlite) for self-contained local development.
+or SQLite fallback (data/torob.sqlite) for self-contained local development.
 """
 
 import os
@@ -13,7 +13,7 @@ import sqlite3
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-DB_FILE = BASE_DIR / "data" / "buyo.sqlite"
+DB_FILE = BASE_DIR / "data" / "torob.sqlite"
 
 SCHEMA_SQL = """
 -- 1. Reference Data: static_data (Airports & Cities merged)
@@ -164,7 +164,7 @@ CREATE TABLE IF NOT EXISTS order_status_history (
 
 def bootstrap_database():
     os.makedirs(DB_FILE.parent, exist_ok=True)
-    print(f"[*] Bootstrapping BuyO database schema at {DB_FILE}...")
+    print(f"[*] Bootstrapping Torob database schema at {DB_FILE}...")
     
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
