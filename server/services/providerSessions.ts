@@ -1,7 +1,9 @@
 /**
  * Provider Session Store
- * Handles in-memory caching and Firebase Firestore synchronization of crawler cookies/credentials
+ * Handles in-memory caching and SQLite (data/buyo.sqlite) persistence of crawler cookies and credentials.
  */
+
+import { sqliteService, DbProviderSession } from './sqliteDb.js';
 
 export interface ProviderSessionData {
   id?: string;
@@ -24,13 +26,19 @@ export interface ProviderSessionData {
 // In-memory runtime cache for server-side fast access
 const sessionCache = new Map<string, ProviderSessionData>();
 
-// Firebase Firestore direct REST persistence helper for Node backend
-const FIRESTORE_PROJECT_ID = process.env.VITE_FIREBASE_PROJECT_ID || 'stately-talon-qvk22';
-const FIRESTORE_DATABASE_ID = 'ai-studio-buyomainbackend-22dd8ddc-455b-4fe8-8185-5d962f901b14';
+// Pre-load existing sessions from SQLite into memory cache on startup
+try {
+  const existingSessions = sqliteService.getAllProviderSessions();
+  for (const sess of existingSessions) {
+    sessionCache.set(sess.site_name.toLowerCase(), sess as ProviderSessionData);
+  }
+} catch (err) {
+  console.warn('[ProviderSession] Preloading from SQLite notice:', (err as Error).message);
+}
 
 export class ProviderSessionService {
   /**
-   * Save or update a provider session/cookie set
+   * Save or update a provider session/cookie set in SQLite & memory cache
    */
   static async saveSession(session: ProviderSessionData): Promise<ProviderSessionData> {
     const siteKey = session.site_name.toLowerCase();
@@ -47,11 +55,11 @@ export class ProviderSessionService {
     // Cache in-memory
     sessionCache.set(siteKey, record);
 
-    // Save to Firestore via REST API if configured
+    // Save to SQLite
     try {
-      await this.persistToFirestore(siteKey, record);
+      sqliteService.saveProviderSession(record as DbProviderSession);
     } catch (err) {
-      console.warn(`[ProviderSession] Notice: could not persist to Firestore (${(err as Error).message}), cached in memory.`);
+      console.warn(`[ProviderSession] Warning: could not persist to SQLite (${(err as Error).message})`);
     }
 
     return record;
@@ -62,30 +70,34 @@ export class ProviderSessionService {
    */
   static async getActiveSession(siteName: string): Promise<ProviderSessionData | null> {
     const siteKey = siteName.toLowerCase();
-    
+
     // Check in-memory cache first
-    const cached = sessionCache.get(siteKey);
+    let cached = sessionCache.get(siteKey);
+
+    // If not in cache, load from SQLite
+    if (!cached) {
+      try {
+        const fromDb = sqliteService.getProviderSession(siteKey);
+        if (fromDb) {
+          cached = fromDb as ProviderSessionData;
+          sessionCache.set(siteKey, cached);
+        }
+      } catch (err) {
+        console.warn(`[ProviderSession] SQLite lookup warning: ${(err as Error).message}`);
+      }
+    }
+
     if (cached && cached.status === 'active') {
       // Check expiry if defined
       if (cached.expires_at) {
         const exp = new Date(cached.expires_at).getTime();
         if (Date.now() > exp) {
           cached.status = 'expired';
+          sqliteService.saveProviderSession(cached as DbProviderSession);
           return null;
         }
       }
       return cached;
-    }
-
-    // Try fetching from Firestore
-    try {
-      const fromDb = await this.fetchFromFirestore(siteKey);
-      if (fromDb) {
-        sessionCache.set(siteKey, fromDb);
-        return fromDb;
-      }
-    } catch (err) {
-      // Non-blocking
     }
 
     return null;
@@ -107,7 +119,17 @@ export class ProviderSessionService {
     const knownProviders = ['alibaba', 'flytoday', 'safarmarket'];
 
     for (const p of knownProviders) {
-      const s = sessionCache.get(p);
+      let s = sessionCache.get(p);
+      if (!s) {
+        try {
+          const fromDb = sqliteService.getProviderSession(p);
+          if (fromDb) {
+            s = fromDb as ProviderSessionData;
+            sessionCache.set(p, s);
+          }
+        } catch {}
+      }
+
       if (s) {
         list.push({
           site_name: p,
@@ -140,62 +162,9 @@ export class ProviderSessionService {
     const existing = sessionCache.get(siteKey);
     if (existing) {
       existing.status = 'expired';
+      sqliteService.saveProviderSession(existing as DbProviderSession);
       return true;
     }
     return false;
-  }
-
-  // --- Firestore REST Helper ---
-  private static async persistToFirestore(siteKey: string, session: ProviderSessionData): Promise<void> {
-    const url = `https://firestore.googleapis.com/v1/projects/${FIRESTORE_PROJECT_ID}/databases/${FIRESTORE_DATABASE_ID}/documents/provider_sessions/${siteKey}`;
-    
-    // Convert object to Firestore document format
-    const fields: Record<string, any> = {
-      site_name: { stringValue: session.site_name },
-      status: { stringValue: session.status },
-      created_at: { stringValue: session.created_at },
-      last_used_at: { stringValue: session.last_used_at || session.created_at },
-    };
-
-    if (session.session_id) fields.session_id = { stringValue: session.session_id };
-    if (session.flow_id) fields.flow_id = { stringValue: session.flow_id };
-    if (session.auth_state) fields.auth_state = { stringValue: session.auth_state };
-    if (session.proxy_binding) fields.proxy_binding = { stringValue: session.proxy_binding };
-    if (session.expires_at) fields.expires_at = { stringValue: session.expires_at };
-    if (session.cookies) fields.cookies = { stringValue: typeof session.cookies === 'string' ? session.cookies : JSON.stringify(session.cookies) };
-    if (session.headers) fields.headers = { stringValue: typeof session.headers === 'string' ? session.headers : JSON.stringify(session.headers) };
-    if (session.session_storage) fields.session_storage = { stringValue: typeof session.session_storage === 'string' ? session.session_storage : JSON.stringify(session.session_storage) };
-
-    const res = await fetch(url, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fields }),
-    });
-
-    if (!res.ok) {
-      throw new Error(`Firestore REST HTTP ${res.status}`);
-    }
-  }
-
-  private static async fetchFromFirestore(siteKey: string): Promise<ProviderSessionData | null> {
-    const url = `https://firestore.googleapis.com/v1/projects/${FIRESTORE_PROJECT_ID}/databases/${FIRESTORE_DATABASE_ID}/documents/provider_sessions/${siteKey}`;
-    const res = await fetch(url);
-    if (!res.ok) return null;
-
-    const doc = await res.json();
-    if (!doc || !doc.fields) return null;
-
-    const f = doc.fields;
-    return {
-      site_name: f.site_name?.stringValue || siteKey,
-      session_id: f.session_id?.stringValue,
-      status: (f.status?.stringValue as any) || 'active',
-      cookies: f.cookies?.stringValue,
-      headers: f.headers?.stringValue ? JSON.parse(f.headers.stringValue) : undefined,
-      session_storage: f.session_storage?.stringValue ? JSON.parse(f.session_storage.stringValue) : undefined,
-      expires_at: f.expires_at?.stringValue,
-      created_at: f.created_at?.stringValue || new Date().toISOString(),
-      proxy_binding: f.proxy_binding?.stringValue,
-    };
   }
 }

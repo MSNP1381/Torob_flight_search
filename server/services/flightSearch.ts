@@ -292,7 +292,7 @@ const NORTH_AMERICA_CONNECTING_CARRIERS: LongHaulConnectingCarrier[] = [
 let nextSessionId = 5000;
 const sessions = new Map<number, SearchSession>();
 
-export function createSearchSession(rawPayload: any): SearchSession {
+export async function createSearchSession(rawPayload: any): Promise<SearchSession> {
   nextSessionId += 1;
   const sessionId = nextSessionId;
 
@@ -303,7 +303,7 @@ export function createSearchSession(rawPayload: any): SearchSession {
   const destCode = (
     typeof rawPayload.destination === 'object' ? rawPayload.destination.code : rawPayload.destination || 'MHD'
   ).toUpperCase();
-  const depDate = rawPayload.departure_date || rawPayload.departureDate || '2026-06-02';
+  const depDate = rawPayload.departure_date || rawPayload.departureDate || new Date().toISOString().slice(0, 10);
   const retDate = rawPayload.return_date || rawPayload.returnDate || null;
   const tripType = retDate ? 'round_trip' : 'one_way';
   const cabin = rawPayload.cabin || 'economy';
@@ -355,13 +355,35 @@ export function createSearchSession(rawPayload: any): SearchSession {
   let totalRawOffers = 0;
   const groupedCards: GroupedFlightCard[] = [];
 
-  const cabinMultiplier = cabin === 'business' ? 2.3 : cabin === 'first' ? 3.6 : 1.0;
+  // 1. Attempt real live provider flight search (ws.alibaba.ir live domestic flights)
+  let isLiveSuccess = false;
+  try {
+    const { LiveProviderIntegration } = await import('./liveIntegration.js');
+    const liveResult = await LiveProviderIntegration.searchLiveFlights({
+      origin: originCode,
+      destination: destCode,
+      departureDate: depDate,
+      cabin,
+      providers: requestedProviders,
+    });
+    if (liveResult.groupedCards && liveResult.groupedCards.length > 0) {
+      groupedCards.push(...liveResult.groupedCards);
+      totalRawOffers = liveResult.rawOffersCount;
+      isLiveSuccess = true;
+    }
+  } catch (liveErr: any) {
+    console.warn('[flightSearch] Live provider search warning:', liveErr.message);
+  }
 
-  // CASE 1: Long-haul connecting flight (e.g. Tehran to Toronto / Canada / USA)
-  if (isNorthAmerica || !isDirectPossible) {
-    // Select 5 to 7 realistic connecting flights using authorized international transit carriers
-    const carriersPool = NORTH_AMERICA_CONNECTING_CARRIERS;
-    const flightCount = 5 + Math.floor(prng() * 3); // 5, 6, or 7 flights
+  // 2. Fallback to route generator if live search returned empty or for international routes
+  if (!isLiveSuccess) {
+    const cabinMultiplier = cabin === 'business' ? 2.3 : cabin === 'first' ? 3.6 : 1.0;
+
+    // CASE 1: Long-haul connecting flight (e.g. Tehran to Toronto / Canada / USA)
+    if (isNorthAmerica || !isDirectPossible) {
+      // Select 5 to 7 realistic connecting flights using authorized international transit carriers
+      const carriersPool = NORTH_AMERICA_CONNECTING_CARRIERS;
+      const flightCount = 5 + Math.floor(prng() * 3); // 5, 6, or 7 flights
 
     const depHourSlots = [
       { hour: 3, min: 45 },
@@ -388,7 +410,7 @@ export function createSearchSession(rawPayload: any): SearchSession {
       const layoverStr = `${layoverH}h ${layoverM}m`;
 
       // Times
-      const depDateStr = (depDate && String(depDate).slice(0, 10)) || '2026-06-02';
+      const depDateStr = (depDate && String(depDate).slice(0, 10)) || new Date().toISOString().slice(0, 10);
       const depH = String(slot.hour).padStart(2, '0');
       const depM = String(slot.min).padStart(2, '0');
       const departureIso = `${depDateStr}T${depH}:${depM}:00Z`;
@@ -518,7 +540,7 @@ export function createSearchSession(rawPayload: any): SearchSession {
 
       const cleanHour = Math.min(23, Math.max(0, slot.hour + Math.floor(slot.min / 60)));
       const cleanMin = Math.min(59, Math.max(0, slot.min % 60));
-      const depDateStr = (depDate && String(depDate).slice(0, 10)) || '2026-06-02';
+      const depDateStr = (depDate && String(depDate).slice(0, 10)) || new Date().toISOString().slice(0, 10);
       const depH = String(cleanHour).padStart(2, '0');
       const depM = String(cleanMin).padStart(2, '0');
       const departureIso = `${depDateStr}T${depH}:${depM}:00Z`;
@@ -606,6 +628,7 @@ export function createSearchSession(rawPayload: any): SearchSession {
       }
     });
   }
+}
 
   const session: SearchSession = {
     id: sessionId,
@@ -624,6 +647,53 @@ export function createSearchSession(rawPayload: any): SearchSession {
       : undefined,
     createdAt: Date.now(),
   };
+
+  // 3. Persist search session and flight offers into SQLite (data/buyo.sqlite)
+  try {
+    const { sqliteService } = await import('./sqliteDb.js');
+    const dbSessionId = sqliteService.saveSearchSession({
+      session_uuid: `session_${sessionId}_${Date.now()}`,
+      origin_iata_code: originCode,
+      destination_iata_code: destCode,
+      departure_date: depDate,
+      return_date: retDate,
+      cabin_class: cabin,
+      adult_count: 1,
+      status: 'COMPLETED',
+    });
+
+    const dbOffers: any[] = [];
+    for (const card of groupedCards) {
+      for (const prov of card.providers) {
+        dbOffers.push({
+          search_session_id: dbSessionId,
+          grouping_key: card.groupingKey,
+          flight_hash: card.id,
+          provider_code: prov.provider,
+          flight_number: card.flightNumber,
+          airline_iata: card.airline.iata,
+          origin_iata: originCode,
+          destination_iata: destCode,
+          departure_at: card.departureAt,
+          arrival_at: card.arrivalAt,
+          duration: card.duration,
+          stops: card.stops,
+          cabin: card.cabin,
+          is_charter: prov.isCharter ? 1 : 0,
+          total_price: prov.totalPrice,
+          base_price: prov.basePrice,
+          tax_amount: prov.taxAmount,
+          currency: prov.currency || 'IRR',
+          seats_remaining: prov.seatsRemaining,
+          baggage: prov.baggage,
+          raw_payload: prov.deepLink || null,
+        });
+      }
+    }
+    sqliteService.saveFlightOffers(dbSessionId, dbOffers);
+  } catch (dbErr: any) {
+    console.warn('[flightSearch] SQLite save warning:', dbErr.message);
+  }
 
   sessions.set(sessionId, session);
   return session;

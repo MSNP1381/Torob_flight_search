@@ -14,3 +14,6 @@ x.dbcnb
 tmp_data/
 
 x.ipynb
+
+node_modules/
+dist/

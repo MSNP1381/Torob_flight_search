@@ -9,6 +9,7 @@ import {
   UpOutlined,
   SendOutlined,
   CheckCircleOutlined,
+  StarFilled,
 } from '@ant-design/icons';
 import { ProviderLogo } from './ProviderLogo';
 
@@ -56,6 +57,8 @@ export interface FlightCardItemProps {
   isCheapest: boolean;
   isFastest: boolean;
   isEarliest: boolean;
+  algorithmicScore?: number;
+  algorithmicRank?: number;
   onInspectKey: (card: any) => void;
   onSelectBooking: (card: any, offer: any) => void;
   formatToman: (amount: number) => string;
@@ -67,6 +70,8 @@ export const FlightCardItem: React.FC<FlightCardItemProps> = ({
   isCheapest,
   isFastest,
   isEarliest,
+  algorithmicScore,
+  algorithmicRank,
   onInspectKey,
   onSelectBooking,
   formatToman,
@@ -96,7 +101,7 @@ export const FlightCardItem: React.FC<FlightCardItemProps> = ({
     >
       {/* 1. Header Bar: Providers on right, Grouping Key ID on left */}
       <div className="px-4 py-2 bg-slate-50 dark:bg-slate-950/70 border-b border-slate-200 dark:border-slate-800/80 flex items-center justify-between gap-2 text-xs">
-        {/* Right side (RTL): Multi-provider availability */}
+        {/* Right side (RTL): Multi-provider availability & highlights */}
         <div className="flex items-center gap-2 min-w-0 flex-wrap">
           <div className="flex items-center gap-1.5 flex-shrink-0">
             {card.providers.map((p) => (
@@ -114,6 +119,20 @@ export const FlightCardItem: React.FC<FlightCardItemProps> = ({
               <CheckCircleOutlined />
               تجمیع شده ({card.providerCount} منبع)
             </span>
+          )}
+
+          {/* Algorithmic Ranking Score Badge */}
+          {algorithmicScore !== undefined && (
+            <Tag
+              color={algorithmicRank === 1 ? 'volcano' : algorithmicRank === 2 ? 'orange' : 'blue'}
+              className="m-0 text-[10px] font-extrabold flex items-center gap-1 shadow-xs"
+            >
+              <StarFilled className={algorithmicRank === 1 ? 'text-amber-300' : ''} />
+              <span>امتیاز هوشمند: {Math.round(algorithmicScore * 100)}٪</span>
+              {algorithmicRank !== undefined && (
+                <span className="opacity-90 font-mono">({algorithmicRank === 1 ? '🏆 برترین' : `#${algorithmicRank}`})</span>
+              )}
+            </Tag>
           )}
 
           {/* Quick highlight tags */}

@@ -14,6 +14,7 @@ import { getAirports, getAirlines } from '../data/airports.js';
 import { ProviderSessionService } from '../services/providerSessions.js';
 import { LiveProviderIntegration } from '../services/liveIntegration.js';
 import { IranProxyService } from '../services/iranProxyService.js';
+import { sqliteService } from '../services/sqliteDb.js';
 
 export function createApiRouter(): Router {
   const router = Router();
@@ -72,17 +73,64 @@ export function createApiRouter(): Router {
   });
 
   // Flight Search (Alibaba, FlyToday, SafarMarket)
-  router.post('/search', (req: Request, res: Response) => {
-    const session = createSearchSession(req.body);
-    res.json({
-      session_id: session.id,
-      status: session.status,
-      origin: session.origin,
-      destination: session.destination,
-      departure_date: session.departureDate,
-      grouped_cards_count: session.groupedCards.length,
-      raw_offers_count: session.rawOffersCount,
-    });
+  router.post('/search', async (req: Request, res: Response) => {
+    try {
+      const session = await createSearchSession(req.body);
+      res.json({
+        session_id: session.id,
+        status: session.status,
+        origin: session.origin,
+        destination: session.destination,
+        departure_date: session.departureDate,
+        grouped_cards_count: session.groupedCards.length,
+        raw_offers_count: session.rawOffersCount,
+      });
+    } catch (err: any) {
+      console.error('[API /search error]:', err);
+      res.status(500).json({ error: err.message || 'Search execution failed' });
+    }
+  });
+
+  // SQLite Search History Endpoints
+  router.get('/history/searches', (req: Request, res: Response) => {
+    try {
+      const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 20));
+      const searches = sqliteService.getRecentSearches(limit);
+      res.json({
+        success: true,
+        total: searches.length,
+        searches,
+        db_source: 'data/buyo.sqlite',
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  router.get('/history/searches/:id/offers', (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const offers = sqliteService.getSearchOffersBySessionId(id);
+      res.json({
+        success: true,
+        session_id: id,
+        total_offers: offers.length,
+        offers,
+        db_source: 'data/buyo.sqlite',
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  router.delete('/history/searches/:id', (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      sqliteService.deleteSearchSession(id);
+      res.json({ success: true, message: `Session ${id} deleted from SQLite history` });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
   });
 
   router.get('/search/:sessionId/offers', (req: Request, res: Response) => {
@@ -267,7 +315,7 @@ export function createApiRouter(): Router {
       provider,
       origin,
       destination,
-      departureDate || '2026-06-02',
+      departureDate || new Date().toISOString().slice(0, 10),
       cabin || 'economy'
     );
 
